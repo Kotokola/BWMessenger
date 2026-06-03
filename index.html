@@ -4,9 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>BWMessenger — Полный аналог Telegram</title>
-    <!-- Font Awesome 6 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <!-- EmailJS -->
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
     <style>
         * {
@@ -27,7 +25,6 @@
             --tg-message-in: #e4e6eb;
             --tg-accent: #3390ec;
             --tg-hover: #f0f2f5;
-            --tg-danger: #e53935;
         }
 
         body.dark {
@@ -115,13 +112,6 @@
             margin-bottom: 10px;
         }
 
-        .success-msg {
-            color: #4caf50;
-            font-size: 12px;
-            margin-top: -10px;
-            margin-bottom: 10px;
-        }
-
         .messenger {
             display: none;
             height: 100vh;
@@ -162,7 +152,6 @@
             height: 48px;
             border-radius: 50%;
             object-fit: cover;
-            cursor: pointer;
         }
 
         .profile-info {
@@ -178,13 +167,12 @@
             color: var(--tg-text-secondary);
         }
 
-        .logout-btn, .settings-btn {
+        .logout-btn {
             background: none;
             border: none;
             color: var(--tg-text);
             cursor: pointer;
             font-size: 20px;
-            margin-left: 8px;
         }
 
         .chats-list {
@@ -215,18 +203,7 @@
             justify-content: center;
             color: white;
             font-weight: bold;
-            position: relative;
-        }
-
-        .online-indicator {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            background: #4caf50;
-            position: absolute;
-            bottom: 2px;
-            right: 2px;
-            border: 2px solid var(--tg-sidebar);
+            font-size: 20px;
         }
 
         .chat-details {
@@ -270,7 +247,6 @@
             border-radius: 18px;
             background: var(--tg-message-in);
             align-self: flex-start;
-            position: relative;
         }
 
         .message.own {
@@ -323,44 +299,6 @@
             margin-left: 8px;
         }
 
-        .global-search {
-            padding: 8px;
-            border-bottom: 1px solid var(--tg-border);
-        }
-
-        .global-search input {
-            width: 100%;
-            padding: 8px;
-            border-radius: 20px;
-            border: 1px solid var(--tg-border);
-            background: var(--tg-bg);
-            color: var(--tg-text);
-        }
-
-        .search-results {
-            position: absolute;
-            background: var(--tg-bg);
-            border: 1px solid var(--tg-border);
-            border-radius: 12px;
-            width: 300px;
-            max-height: 300px;
-            overflow-y: auto;
-            z-index: 1000;
-            display: none;
-        }
-
-        .search-result-item {
-            padding: 10px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .search-result-item:hover {
-            background: var(--tg-hover);
-        }
-
         .notification {
             position: fixed;
             top: 20px;
@@ -388,6 +326,31 @@
             }
         }
 
+        .search-results-dropdown {
+            position: absolute;
+            background: var(--tg-bg);
+            border: 1px solid var(--tg-border);
+            border-radius: 12px;
+            width: calc(100% - 16px);
+            max-height: 250px;
+            overflow-y: auto;
+            z-index: 100;
+            margin-top: 4px;
+        }
+
+        .search-result-item {
+            padding: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px solid var(--tg-border);
+        }
+
+        .search-result-item:hover {
+            background: var(--tg-hover);
+        }
+
         @media (max-width: 640px) {
             .sidebar {
                 width: 100%;
@@ -396,9 +359,6 @@
                 height: 100%;
                 transform: translateX(-100%);
                 transition: 0.2s;
-            }
-            .sidebar.open {
-                transform: translateX(0);
             }
         }
     </style>
@@ -415,17 +375,15 @@
     };
     // ========================================
 
-    // Инициализация EmailJS
     emailjs.init(EMAILJS_CONFIG.PUBLIC_KEY);
 
     // ---------- IndexedDB ----------
     const DB_NAME = 'BWMessengerDB';
-    const DB_VERSION = 3;
+    const DB_VERSION = 5;
     let db = null;
     let currentUser = null;
     let currentChat = null;
     let allChats = [];
-    let replyToMessage = null;
 
     function openDB() {
         return new Promise((resolve, reject) => {
@@ -443,16 +401,15 @@
                     userStore.createIndex('email', 'email', { unique: true });
                 }
                 if (!db_.objectStoreNames.contains('chats')) {
-                    const chatStore = db_.createObjectStore('chats', { keyPath: 'id' });
-                    chatStore.createIndex('type', 'type');
+                    db_.createObjectStore('chats', { keyPath: 'id' });
                 }
                 if (!db_.objectStoreNames.contains('messages')) {
                     const msgStore = db_.createObjectStore('messages', { keyPath: 'id', autoIncrement: true });
                     msgStore.createIndex('chatId', 'chatId');
                     msgStore.createIndex('timestamp', 'timestamp');
                 }
-                if (!db_.objectStoreNames.contains('sessions')) {
-                    db_.createObjectStore('sessions', { keyPath: 'userId' });
+                if (!db_.objectStoreNames.contains('session')) {
+                    db_.createObjectStore('session', { keyPath: 'id' });
                 }
             };
         });
@@ -467,26 +424,27 @@
     }
 
     async function saveUser(user) {
-        return new Promise((resolve, reject) => {
-            const tx = db.transaction('users', 'readwrite');
-            const req = tx.objectStore('users').put(user);
-            req.onsuccess = () => resolve();
-            req.onerror = () => reject(req.error);
-        });
-    }
-
-    async function getUserByUsername(username) {
         return new Promise((resolve) => {
-            const tx = db.transaction('users', 'readonly');
-            const req = tx.objectStore('users').index('username').get(username);
-            req.onsuccess = () => resolve(req.result);
+            const tx = db.transaction('users', 'readwrite');
+            tx.objectStore('users').put(user);
+            tx.oncomplete = () => resolve();
         });
     }
 
     async function getUserByEmail(email) {
         return new Promise((resolve) => {
             const tx = db.transaction('users', 'readonly');
-            const req = tx.objectStore('users').index('email').get(email);
+            const index = tx.objectStore('users').index('email');
+            const req = index.get(email);
+            req.onsuccess = () => resolve(req.result);
+        });
+    }
+
+    async function getUserByUsername(username) {
+        return new Promise((resolve) => {
+            const tx = db.transaction('users', 'readonly');
+            const index = tx.objectStore('users').index('username');
+            const req = index.get(username);
             req.onsuccess = () => resolve(req.result);
         });
     }
@@ -505,11 +463,12 @@
         return new Promise((resolve) => { tx.oncomplete = resolve; });
     }
 
-    async function getMessagesForChat(chatId) {
+    async function getMessages(chatId) {
         return new Promise((resolve) => {
             const tx = db.transaction('messages', 'readonly');
-            const req = tx.objectStore('messages').index('chatId').getAll(chatId);
-            req.onsuccess = () => resolve(req.result.sort((a,b)=>a.timestamp - b.timestamp));
+            const index = tx.objectStore('messages').index('chatId');
+            const req = index.getAll(chatId);
+            req.onsuccess = () => resolve(req.result.sort((a,b) => a.timestamp - b.timestamp));
         });
     }
 
@@ -519,22 +478,7 @@
         return new Promise((resolve) => { tx.oncomplete = resolve; });
     }
 
-    async function updateMessage(msgId, newText) {
-        const tx = db.transaction('messages', 'readwrite');
-        const store = tx.objectStore('messages');
-        const getReq = store.get(msgId);
-        getReq.onsuccess = () => {
-            const msg = getReq.result;
-            if(msg) {
-                msg.text = newText;
-                msg.edited = true;
-                store.put(msg);
-            }
-        };
-        return new Promise((resolve) => { tx.oncomplete = resolve; });
-    }
-
-    async function deleteMessageFromDB(msgId) {
+    async function deleteMessage(msgId) {
         const tx = db.transaction('messages', 'readwrite');
         tx.objectStore('messages').delete(msgId);
         return new Promise((resolve) => { tx.oncomplete = resolve; });
@@ -542,307 +486,263 @@
 
     async function getSession() {
         return new Promise((resolve) => {
-            const tx = db.transaction('sessions', 'readonly');
-            const req = tx.objectStore('sessions').get('current');
+            const tx = db.transaction('session', 'readonly');
+            const req = tx.objectStore('session').get('current');
             req.onsuccess = () => resolve(req.result?.userId || null);
         });
     }
 
     async function setSession(userId) {
-        const tx = db.transaction('sessions', 'readwrite');
-        tx.objectStore('sessions').put({ userId: userId, key: 'current' });
+        const tx = db.transaction('session', 'readwrite');
+        tx.objectStore('session').put({ id: 'current', userId: userId });
         return new Promise((resolve) => { tx.oncomplete = resolve; });
     }
 
     async function clearSession() {
-        const tx = db.transaction('sessions', 'readwrite');
-        tx.objectStore('sessions').delete('current');
+        const tx = db.transaction('session', 'readwrite');
+        tx.objectStore('session').delete('current');
         return new Promise((resolve) => { tx.oncomplete = resolve; });
     }
 
-    function generateUserId() {
-        return Math.floor(10000000 + Math.random() * 90000000).toString();
+    function showNotification(msg, isError = false) {
+        const div = document.createElement('div');
+        div.className = `notification ${isError ? 'error' : ''}`;
+        div.textContent = msg;
+        document.body.appendChild(div);
+        setTimeout(() => div.remove(), 3000);
     }
 
-    function showNotification(message, isError = false) {
-        const notif = document.createElement('div');
-        notif.className = `notification ${isError ? 'error' : ''}`;
-        notif.textContent = message;
-        document.body.appendChild(notif);
-        setTimeout(() => notif.remove(), 3000);
-    }
+    // Очистка базы данных
+    window.clearDatabase = async function() {
+        if(confirm('Очистить всю базу данных? Все пользователи и сообщения будут удалены!')){
+            indexedDB.deleteDatabase(DB_NAME);
+            showNotification('База данных очищена. Обновите страницу.');
+            setTimeout(() => location.reload(), 1500);
+        }
+    };
 
-    // ========== ОТПРАВКА РЕАЛЬНОГО EMAIL ==========
     async function sendVerificationCode(email, code) {
         try {
-            const templateParams = {
-                to_email: email,
-                verification_code: code,
-                to_name: email.split('@')[0],
-                message: `Ваш код подтверждения для входа в BWMessenger: ${code}`
-            };
-            
-            const response = await emailjs.send(
+            const result = await emailjs.send(
                 EMAILJS_CONFIG.SERVICE_ID,
                 EMAILJS_CONFIG.TEMPLATE_ID,
-                templateParams
+                {
+                    to_email: email,
+                    verification_code: code,
+                    to_name: email.split('@')[0]
+                }
             );
-            
-            if (response.status === 200) {
-                showNotification(`✅ Код подтверждения отправлен на ${email}`);
+            if(result.status === 200) {
+                showNotification(`✅ Код отправлен на ${email}`);
                 return true;
-            } else {
-                throw new Error('Ошибка отправки');
             }
-        } catch(error) {
-            console.error('EmailJS Error:', error);
-            showNotification(`❌ Ошибка отправки: ${error.text || 'Проверьте настройки EmailJS'}`, true);
+        } catch(e) {
+            console.error(e);
+            showNotification(`❌ Ошибка: ${e.text || 'Проверьте email'}`, true);
             return false;
         }
-    }
-
-    // Создание чата "Избранное"
-    async function createSavedMessages() {
-        let chats = await getAllChats();
-        let savedChat = chats.find(c => c.type === 'saved');
-        if (!savedChat && currentUser) {
-            savedChat = {
-                id: `saved_${currentUser.id}`,
-                type: 'saved',
-                participants: [currentUser.id],
-                name: 'Избранное',
-                createdAt: Date.now()
-            };
-            await saveChat(savedChat);
-        }
-        return savedChat;
-    }
-
-    async function createOrGetPrivateChat(user1Id, user2Id) {
-        let chats = await getAllChats();
-        let existing = chats.find(c => c.type === 'private' && 
-            c.participants.includes(user1Id) && c.participants.includes(user2Id));
-        if(existing) return existing;
-        let newChat = {
-            id: Date.now().toString(),
-            type: 'private',
-            participants: [user1Id, user2Id],
-            name: null,
-            createdAt: Date.now()
-        };
-        await saveChat(newChat);
-        return newChat;
+        return false;
     }
 
     const app = document.getElementById('app');
 
     async function init() {
         await openDB();
-        const sessionUserId = await getSession();
-        if(sessionUserId) {
+        const sessionId = await getSession();
+        if(sessionId) {
             const users = await getUsers();
-            currentUser = users.find(u => u.id === sessionUserId);
+            currentUser = users.find(u => u.id === sessionId);
             if(currentUser) {
-                await createSavedMessages();
                 renderMessenger();
                 return;
-            } else {
-                await clearSession();
             }
         }
-        renderAuthEmail();
+        renderLogin();
     }
 
-    function renderAuthEmail() {
+    function renderLogin() {
         app.innerHTML = `
             <div class="auth-container">
                 <div class="auth-card">
                     <h2><i class="fas fa-paper-plane"></i> BWMessenger</h2>
-                    <p style="text-align:center; margin-bottom:20px;">Введите email для входа или регистрации</p>
-                    <input type="email" id="emailInput" placeholder="Email" autocomplete="off">
-                    <button id="sendCodeBtn"><i class="fas fa-envelope"></i> Отправить код</button>
-                    <div id="codeSection" style="display:none;">
-                        <input type="text" id="codeInput" placeholder="6-значный код">
-                        <button id="verifyCodeBtn"><i class="fas fa-check"></i> Подтвердить</button>
+                    <div id="loginForm">
+                        <input type="email" id="loginEmail" placeholder="Email">
+                        <input type="password" id="loginPassword" placeholder="Пароль">
+                        <button id="doLoginBtn">Войти</button>
+                        <p style="text-align:center;margin:10px 0">— или —</p>
+                        <button id="showRegisterBtn" style="background:transparent;color:var(--tg-accent);border:1px solid var(--tg-accent);">Регистрация</button>
+                    </div>
+                    <div id="registerForm" style="display:none;">
+                        <img id="avatarPreview" class="avatar-preview" src="https://via.placeholder.com/80">
+                        <input type="file" id="avatarFile" accept="image/*">
+                        <input type="text" id="regName" placeholder="Имя">
+                        <input type="text" id="regLastname" placeholder="Фамилия">
+                        <input type="text" id="regUsername" placeholder="Username (латиница)">
+                        <input type="email" id="regEmail" placeholder="Email">
+                        <input type="password" id="regPassword" placeholder="Пароль">
+                        <button id="doRegisterBtn">Зарегистрироваться</button>
+                        <button id="backToLoginBtn" style="background:transparent;color:var(--tg-text);">Назад</button>
                     </div>
                     <div class="error-msg" id="authError"></div>
                 </div>
             </div>
         `;
-        
-        const emailInp = document.getElementById('emailInput');
-        const sendBtn = document.getElementById('sendCodeBtn');
-        const codeDiv = document.getElementById('codeSection');
-        const codeInp = document.getElementById('codeInput');
-        const verifyBtn = document.getElementById('verifyCodeBtn');
-        const errorDiv = document.getElementById('authError');
-        let pendingEmail = null;
-        let generatedCode = null;
 
-        sendBtn.onclick = async () => {
-            const email = emailInp.value.trim();
-            if(!email.includes('@')) { 
-                errorDiv.innerText = 'Введите корректный email'; 
-                return; 
+        document.getElementById('doLoginBtn').onclick = async () => {
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value;
+            if(!email || !password) {
+                document.getElementById('authError').innerText = 'Заполните все поля';
+                return;
             }
-            pendingEmail = email;
-            generatedCode = Math.floor(100000 + Math.random() * 900000).toString();
-            
-            sendBtn.disabled = true;
-            sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Отправка...';
-            
-            const sent = await sendVerificationCode(email, generatedCode);
-            
-            sendBtn.disabled = false;
-            sendBtn.innerHTML = '<i class="fas fa-envelope"></i> Отправить код';
-            
-            if(sent) {
-                codeDiv.style.display = 'block';
-                errorDiv.innerHTML = '<div class="success-msg">✓ Код отправлен на почту! Проверьте входящие</div>';
-                setTimeout(() => errorDiv.innerHTML = '', 5000);
+            const user = await getUserByEmail(email);
+            if(user && user.password === password) {
+                currentUser = user;
+                await setSession(currentUser.id);
+                renderMessenger();
             } else {
-                errorDiv.innerText = 'Ошибка отправки. Попробуйте еще раз.';
+                document.getElementById('authError').innerText = 'Неверный email или пароль';
             }
         };
-        
-        verifyBtn.onclick = async () => {
-            if(codeInp.value === generatedCode) {
-                let user = await getUserByEmail(pendingEmail);
-                if(user) {
-                    currentUser = user;
-                    await setSession(currentUser.id);
-                    await createSavedMessages();
-                    renderMessenger();
-                } else {
-                    renderRegistration(pendingEmail);
-                }
-            } else {
-                errorDiv.innerText = 'Неверный код';
-            }
+
+        document.getElementById('showRegisterBtn').onclick = () => {
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('registerForm').style.display = 'block';
         };
-    }
 
-    function renderRegistration(email) {
-        app.innerHTML = `
-            <div class="auth-container">
-                <div class="auth-card">
-                    <h2>Регистрация</h2>
-                    <img id="avatarPreview" class="avatar-preview" src="https://via.placeholder.com/80?text=Avatar">
-                    <input type="file" id="avatarInput" accept="image/*">
-                    <input type="text" id="firstName" placeholder="Имя">
-                    <input type="text" id="lastName" placeholder="Фамилия">
-                    <input type="text" id="usernameReg" placeholder="USERNAME (латиница, цифры, _)">
-                    <button id="registerBtn">Завершить регистрацию</button>
-                    <div class="error-msg" id="regError"></div>
-                </div>
-            </div>
-        `;
-        
-        const avatarFile = document.getElementById('avatarInput');
-        const avatarPreview = document.getElementById('avatarPreview');
-        const firstName = document.getElementById('firstName');
-        const lastName = document.getElementById('lastName');
-        const usernameReg = document.getElementById('usernameReg');
-        const regBtn = document.getElementById('registerBtn');
-        const regError = document.getElementById('regError');
+        document.getElementById('backToLoginBtn').onclick = () => {
+            document.getElementById('loginForm').style.display = 'block';
+            document.getElementById('registerForm').style.display = 'none';
+        };
 
-        avatarFile.onchange = (e) => {
-            const file = e.target.files[0];
-            if(file) {
+        document.getElementById('doRegisterBtn').onclick = async () => {
+            const name = document.getElementById('regName').value.trim();
+            const lastname = document.getElementById('regLastname').value.trim();
+            const username = document.getElementById('regUsername').value.trim();
+            const email = document.getElementById('regEmail').value.trim();
+            const password = document.getElementById('regPassword').value;
+            const avatarFile = document.getElementById('avatarFile').files[0];
+            const errorDiv = document.getElementById('authError');
+
+            if(!name || !lastname || !username || !email || !password) {
+                errorDiv.innerText = 'Заполните все поля';
+                return;
+            }
+            if(!/^[a-zA-Z0-9_]+$/.test(username)) {
+                errorDiv.innerText = 'Username только буквы, цифры, _';
+                return;
+            }
+            if(await getUserByEmail(email)) {
+                errorDiv.innerText = 'Email уже используется';
+                return;
+            }
+            if(await getUserByUsername(username)) {
+                errorDiv.innerText = 'Username уже занят';
+                return;
+            }
+
+            const code = Math.floor(100000 + Math.random() * 900000).toString();
+            const sent = await sendVerificationCode(email, code);
+            if(!sent) {
+                errorDiv.innerText = 'Не удалось отправить код';
+                return;
+            }
+
+            const userCode = prompt(`Введите код подтверждения, отправленный на ${email}`);
+            if(userCode !== code) {
+                errorDiv.innerText = 'Неверный код подтверждения';
+                return;
+            }
+
+            let avatarBase64 = null;
+            if(avatarFile) {
                 const reader = new FileReader();
-                reader.onload = (ev) => avatarPreview.src = ev.target.result;
-                reader.readAsDataURL(file);
+                avatarBase64 = await new Promise(resolve => {
+                    reader.onload = e => resolve(e.target.result);
+                    reader.readAsDataURL(avatarFile);
+                });
             }
-        };
-        
-        regBtn.onclick = async () => {
-            const fname = firstName.value.trim();
-            const lname = lastName.value.trim();
-            const username = usernameReg.value.trim();
-            if(!fname || !lname || !username) { regError.innerText = 'Заполните все поля'; return; }
-            if(!/^[a-zA-Z0-9_]+$/.test(username)) { regError.innerText = 'Username только латиница, цифры, _'; return; }
-            const existing = await getUserByUsername(username);
-            if(existing) { regError.innerText = 'Username занят'; return; }
-            let avatarBase64 = avatarPreview.src !== "https://via.placeholder.com/80?text=Avatar" ? avatarPreview.src : null;
+
             const newUser = {
-                id: generateUserId(),
-                email: email,
-                firstName: fname,
-                lastName: lname,
+                id: Date.now().toString(),
+                name: name,
+                lastname: lastname,
                 username: username,
+                email: email,
+                password: password,
                 avatar: avatarBase64,
                 createdAt: Date.now()
             };
             await saveUser(newUser);
             currentUser = newUser;
             await setSession(currentUser.id);
-            await createSavedMessages();
             renderMessenger();
         };
     }
 
     async function renderMessenger() {
-        await refreshChats();
+        allChats = await getAllChats();
+        
+        // Создать чат "Избранное"
+        if(!allChats.find(c => c.type === 'saved' && c.userId === currentUser.id)) {
+            const savedChat = {
+                id: `saved_${currentUser.id}`,
+                type: 'saved',
+                userId: currentUser.id,
+                name: 'Избранное',
+                createdAt: Date.now()
+            };
+            await saveChat(savedChat);
+            allChats.push(savedChat);
+        }
+
         app.innerHTML = `
             <div class="messenger">
                 <div class="messenger-container">
-                    <div class="sidebar" id="sidebar">
+                    <div class="sidebar">
                         <div class="profile-header">
-                            <img class="profile-avatar" src="${currentUser.avatar || 'https://via.placeholder.com/48'}" onerror="this.src='https://via.placeholder.com/48'">
+                            <img class="profile-avatar" src="${currentUser.avatar || 'https://via.placeholder.com/48'}">
                             <div class="profile-info">
-                                <div class="profile-name">${currentUser.firstName} ${currentUser.lastName}</div>
-                                <div class="profile-username">@${currentUser.username}</div>
+                                <div class="profile-name">${escapeHtml(currentUser.name)} ${escapeHtml(currentUser.lastname)}</div>
+                                <div class="profile-username">@${escapeHtml(currentUser.username)}</div>
                             </div>
                             <button class="theme-toggle" id="themeToggle"><i class="fas fa-moon"></i></button>
                             <button class="logout-btn" id="logoutBtn"><i class="fas fa-sign-out-alt"></i></button>
                         </div>
-                        <div class="global-search">
-                            <input type="text" id="globalSearch" placeholder="🔍 Поиск пользователей по username...">
-                            <div id="searchResults" class="search-results"></div>
+                        <div style="padding:8px; position:relative;">
+                            <input type="text" id="searchUsers" placeholder="🔍 Поиск пользователей..." style="width:100%;padding:8px;border-radius:20px;border:1px solid var(--tg-border);background:var(--tg-bg);color:var(--tg-text);">
+                            <div id="searchResults" class="search-results-dropdown" style="display:none;"></div>
                         </div>
                         <div class="chats-list" id="chatsList"></div>
-                        <div style="padding: 12px;">
-                            <button id="newGroupBtn" style="background:var(--tg-accent);color:white;border:none;border-radius:20px;padding:8px;width:100%;">
-                                <i class="fas fa-plus"></i> Создать группу
-                            </button>
+                        <div style="padding:12px">
+                            <button id="newGroupBtn" style="width:100%;padding:8px;background:var(--tg-accent);color:white;border:none;border-radius:20px;"><i class="fas fa-plus"></i> Создать группу</button>
                         </div>
                     </div>
                     <div class="chat-area">
                         <div class="chat-header" id="chatHeader">Выберите чат</div>
-                        <div class="messages-area" id="messagesArea"></div>
+                        <div class="messages-area" id="messagesArea"><div style="text-align:center;padding:20px;color:var(--tg-text-secondary);">Выберите чат слева</div></div>
                         <div class="input-area" id="inputArea" style="display:none;">
-                            <div id="replyIndicator" style="width:100%;display:none;padding:8px;background:var(--tg-sidebar);border-radius:8px;margin-bottom:8px;">
-                                <i class="fas fa-reply"></i> Ответ: <span id="replyText"></span>
-                                <button id="cancelReply" style="float:right;background:none;border:none;">✖</button>
-                            </div>
                             <input type="text" id="messageInput" placeholder="Сообщение">
-                            <button id="attachBtn"><i class="fas fa-paperclip"></i></button>
-                            <button id="sendMsgBtn"><i class="fas fa-paper-plane"></i></button>
-                            <input type="file" id="fileInput" style="display:none;" multiple>
+                            <button id="sendBtn"><i class="fas fa-paper-plane"></i></button>
                         </div>
                     </div>
                 </div>
             </div>
         `;
-        
+
         document.getElementById('logoutBtn').onclick = async () => {
             await clearSession();
-            currentUser = null;
-            renderAuthEmail();
+            location.reload();
         };
-        
-        document.getElementById('themeToggle').onclick = () => {
-            document.body.classList.toggle('dark');
-        };
-        
-        document.getElementById('newGroupBtn').onclick = () => createGroupDialog();
-        
-        // Глобальный поиск
-        const searchInput = document.getElementById('globalSearch');
+
+        document.getElementById('themeToggle').onclick = () => document.body.classList.toggle('dark');
+
+        // Поиск пользователей
+        const searchInput = document.getElementById('searchUsers');
         const searchResults = document.getElementById('searchResults');
         
         searchInput.oninput = async (e) => {
-            const query = e.target.value.toLowerCase();
+            const query = e.target.value.toLowerCase().trim();
             if(query.length < 2) {
                 searchResults.style.display = 'none';
                 return;
@@ -850,26 +750,39 @@
             const users = await getUsers();
             const filtered = users.filter(u => u.id !== currentUser.id && 
                 (u.username.toLowerCase().includes(query) || 
-                 u.firstName.toLowerCase().includes(query) || 
-                 u.lastName.toLowerCase().includes(query)));
+                 u.name.toLowerCase().includes(query) || 
+                 u.lastname.toLowerCase().includes(query)));
             
             if(filtered.length > 0) {
                 searchResults.innerHTML = filtered.map(u => `
-                    <div class="search-result-item" data-username="${u.username}">
+                    <div class="search-result-item" data-user-id="${u.id}">
                         <img src="${u.avatar || 'https://via.placeholder.com/32'}" style="width:32px;height:32px;border-radius:50%;">
                         <div>
-                            <strong>${u.firstName} ${u.lastName}</strong><br>
-                            <small>@${u.username}</small>
+                            <strong>${escapeHtml(u.name)} ${escapeHtml(u.lastname)}</strong><br>
+                            <small>@${escapeHtml(u.username)}</small>
                         </div>
                     </div>
                 `).join('');
                 searchResults.style.display = 'block';
+                
                 document.querySelectorAll('.search-result-item').forEach(el => {
                     el.onclick = async () => {
-                        const username = el.dataset.username;
-                        const user = await getUserByUsername(username);
-                        if(user) {
-                            const chat = await createOrGetPrivateChat(currentUser.id, user.id);
+                        const userId = el.dataset.userId;
+                        const targetUser = (await getUsers()).find(u => u.id === userId);
+                        if(targetUser) {
+                            let chat = allChats.find(c => c.type === 'private' && 
+                                c.participants && c.participants.includes(currentUser.id) && c.participants.includes(targetUser.id));
+                            if(!chat) {
+                                chat = {
+                                    id: `private_${Date.now()}`,
+                                    type: 'private',
+                                    participants: [currentUser.id, targetUser.id],
+                                    name: `${targetUser.name} ${targetUser.lastname}`,
+                                    createdAt: Date.now()
+                                };
+                                await saveChat(chat);
+                                allChats.push(chat);
+                            }
                             await openChat(chat.id);
                             searchResults.style.display = 'none';
                             searchInput.value = '';
@@ -880,114 +793,68 @@
                 searchResults.style.display = 'none';
             }
         };
-        
+
         document.addEventListener('click', (e) => {
-            if(searchInput && !searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+            if(!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
                 searchResults.style.display = 'none';
             }
         });
-        
-        // Отправка файлов
-        const fileInput = document.getElementById('fileInput');
-        document.getElementById('attachBtn').onclick = () => fileInput.click();
-        fileInput.onchange = async (e) => {
-            if(e.target.files && currentChat) {
-                for(let file of e.target.files) {
-                    const reader = new FileReader();
-                    reader.onload = async (ev) => {
-                        await saveMessage({
-                            chatId: currentChat.id,
-                            senderId: currentUser.id,
-                            text: ev.target.result,
-                            type: file.type.startsWith('image/') ? 'image' : 'file',
-                            fileName: file.name,
-                            fileSize: file.size,
-                            timestamp: Date.now(),
-                            replyTo: replyToMessage?.id || null
-                        });
-                        replyToMessage = null;
-                        document.getElementById('replyIndicator').style.display = 'none';
-                        await refreshMessages();
-                    };
-                    reader.readAsDataURL(file);
-                }
-            }
+
+        document.getElementById('newGroupBtn').onclick = async () => {
+            const groupName = prompt('Название группы');
+            if(!groupName) return;
+            const newChat = {
+                id: `group_${Date.now()}`,
+                type: 'group',
+                name: groupName,
+                participants: [currentUser.id],
+                createdAt: Date.now()
+            };
+            await saveChat(newChat);
+            allChats.push(newChat);
+            await renderChatsList();
         };
-        
-        document.getElementById('sendMsgBtn').onclick = async () => {
-            const inp = document.getElementById('messageInput');
-            if(inp.value.trim() && currentChat) {
-                await saveMessage({
-                    chatId: currentChat.id,
-                    senderId: currentUser.id,
-                    text: inp.value,
-                    type: 'text',
-                    timestamp: Date.now(),
-                    replyTo: replyToMessage?.id || null,
-                    edited: false
-                });
-                inp.value = '';
-                replyToMessage = null;
-                document.getElementById('replyIndicator').style.display = 'none';
-                await refreshMessages();
-            }
-        };
-        
-        document.getElementById('messageInput').onkeypress = (e) => {
-            if(e.key === 'Enter') document.getElementById('sendMsgBtn').click();
-        };
-        
-        document.getElementById('cancelReply')?.addEventListener('click', () => {
-            replyToMessage = null;
-            document.getElementById('replyIndicator').style.display = 'none';
-        });
-        
-        await refreshChatsList();
-        if(currentChat) {
-            await openChat(currentChat.id);
-        } else {
-            const saved = await createSavedMessages();
-            if(saved) await openChat(saved.id);
-        }
-        document.querySelector('.messenger').style.display = 'block';
+
+        await renderChatsList();
     }
 
-    async function refreshChats() {
-        allChats = await getAllChats();
-    }
-
-    async function refreshChatsList() {
+    async function renderChatsList() {
         const container = document.getElementById('chatsList');
         if(!container) return;
         const myId = currentUser.id;
-        let myChats = allChats.filter(c => c.participants.includes(myId));
         const users = await getUsers();
-        
+        let myChats = allChats.filter(c => {
+            if(c.type === 'private') return c.participants?.includes(myId);
+            if(c.type === 'saved') return c.userId === myId;
+            if(c.type === 'group') return c.participants?.includes(myId);
+            return false;
+        });
+
         container.innerHTML = myChats.map(chat => {
-            let chatName = chat.name;
-            let avatarLetter = chat.name?.[0] || '💬';
-            
+            let displayName = chat.name;
+            let avatar = '💬';
             if(chat.type === 'private') {
                 const otherId = chat.participants.find(id => id !== myId);
                 const other = users.find(u => u.id === otherId);
-                chatName = other ? `${other.firstName} ${other.lastName}` : 'Unknown';
-                avatarLetter = chatName[0];
+                displayName = other ? `${other.name} ${other.lastname}` : 'Unknown';
+                avatar = displayName[0].toUpperCase();
             } else if(chat.type === 'saved') {
-                chatName = '⭐️ Избранное';
-                avatarLetter = '⭐';
+                displayName = '⭐ Избранное';
+                avatar = '⭐';
+            } else {
+                avatar = chat.name[0].toUpperCase();
             }
-            
             return `<div class="chat-item" data-chat-id="${chat.id}">
-                        <div class="chat-avatar">${avatarLetter}</div>
+                        <div class="chat-avatar">${avatar}</div>
                         <div class="chat-details">
-                            <div class="chat-name">${chatName}</div>
-                            <div class="chat-last-msg">Нет сообщений</div>
+                            <div class="chat-name">${escapeHtml(displayName)}</div>
+                            <div class="chat-last-msg">Чат</div>
                         </div>
                     </div>`;
         }).join('');
-        
+
         document.querySelectorAll('.chat-item').forEach(el => {
-            el.addEventListener('click', () => openChat(el.dataset.chatId));
+            el.onclick = () => openChat(el.dataset.chatId);
         });
     }
 
@@ -996,129 +863,97 @@
         if(!currentChat) return;
         
         document.getElementById('inputArea').style.display = 'flex';
-        await refreshMessages();
+        document.getElementById('messagesArea').innerHTML = '<div style="text-align:center;padding:20px;">Загрузка...</div>';
+        
+        const users = await getUsers();
+        const myId = currentUser.id;
+        
+        let headerText = '';
+        if(currentChat.type === 'private') {
+            const otherId = currentChat.participants.find(id => id !== myId);
+            const other = users.find(u => u.id === otherId);
+            headerText = other ? `${other.name} ${other.lastname}` : 'Чат';
+        } else if(currentChat.type === 'saved') {
+            headerText = '⭐ Избранное';
+        } else {
+            headerText = currentChat.name;
+        }
+        document.getElementById('chatHeader').innerHTML = `<strong>${escapeHtml(headerText)}</strong>`;
+        
+        await loadMessages();
         
         document.querySelectorAll('.chat-item').forEach(el => el.classList.remove('active'));
-        document.querySelector(`.chat-item[data-chat-id="${chatId}"]`)?.classList.add('active');
+        const activeEl = document.querySelector(`.chat-item[data-chat-id="${chatId}"]`);
+        if(activeEl) activeEl.classList.add('active');
         
-        let header = document.getElementById('chatHeader');
-        if(currentChat.type === 'private') {
-            const users = await getUsers();
-            const otherId = currentChat.participants.find(id=>id!==currentUser.id);
-            const other = users.find(u=>u.id===otherId);
-            if(other) {
-                header.innerHTML = `
-                    <img class="profile-avatar" src="${other.avatar || 'https://via.placeholder.com/48'}" style="width:40px;height:40px;">
-                    <div>
-                        <strong>${other.firstName} ${other.lastName}</strong><br>
-                        <small>@${other.username}</small>
-                    </div>
-                `;
+        // Добавляем обработчик отправки сообщений
+        const sendBtn = document.getElementById('sendBtn');
+        const messageInput = document.getElementById('messageInput');
+        
+        const newSendHandler = async () => {
+            if(messageInput.value.trim() && currentChat) {
+                await saveMessage({
+                    chatId: currentChat.id,
+                    senderId: currentUser.id,
+                    text: messageInput.value,
+                    timestamp: Date.now()
+                });
+                messageInput.value = '';
+                await loadMessages();
             }
-        } else if(currentChat.type === 'saved') {
-            header.innerHTML = `<div><strong>⭐️ Избранное</strong><br><small>Ваши сохраненные сообщения</small></div>`;
-        } else {
-            header.innerHTML = `<div><strong>${currentChat.name}</strong><br><small>Групповой чат</small></div>`;
-        }
+        };
+        
+        sendBtn.onclick = newSendHandler;
+        messageInput.onkeypress = (e) => {
+            if(e.key === 'Enter') newSendHandler();
+        };
     }
 
-    async function refreshMessages() {
+    async function loadMessages() {
         if(!currentChat) return;
-        const msgs = await getMessagesForChat(currentChat.id);
+        const messages = await getMessages(currentChat.id);
         const users = await getUsers();
-        const messagesArea = document.getElementById('messagesArea');
+        const container = document.getElementById('messagesArea');
         
-        if(msgs.length === 0) {
-            messagesArea.innerHTML = '<div style="text-align:center;color:var(--tg-text-secondary);padding:20px;">Нет сообщений. Напишите что-нибудь!</div>';
+        if(messages.length === 0) {
+            container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--tg-text-secondary);">Нет сообщений. Напишите что-нибудь!</div>';
             return;
         }
         
-        messagesArea.innerHTML = msgs.map(msg => {
+        container.innerHTML = messages.map(msg => {
             const isOwn = msg.senderId === currentUser.id;
-            const sender = users.find(u=>u.id===msg.senderId);
-            const senderName = sender ? sender.firstName : 'Unknown';
-            
-            let content = '';
-            if(msg.type === 'image') {
-                content = `<img src="${msg.text}" style="max-width:250px;border-radius:12px;cursor:pointer;" onclick="window.open(this.src)">`;
-            } else if(msg.type === 'file') {
-                content = `<i class="fas fa-file"></i> ${msg.fileName || 'Файл'} (${(msg.fileSize/1024).toFixed(1)} KB)<br>
-                          <a href="${msg.text}" download="${msg.fileName}" style="color:var(--tg-accent);">Скачать</a>`;
-            } else {
-                content = msg.text;
-            }
-            
+            const sender = users.find(u => u.id === msg.senderId);
+            const senderName = sender ? `${sender.name} ${sender.lastname}` : 'Unknown';
+            const time = new Date(msg.timestamp).toLocaleTimeString();
             return `<div class="message ${isOwn ? 'own' : ''}">
-                        <div class="message-text">${content}</div>
+                        <div class="message-text">${escapeHtml(msg.text)}</div>
                         <div class="message-meta">
-                            ${!isOwn ? senderName + ' • ' : ''}${new Date(msg.timestamp).toLocaleTimeString()} ${msg.edited ? '(ред.)' : ''}
-                            ${!isOwn ? `<i class="fas fa-reply" style="margin-left:8px;cursor:pointer;" data-reply-id="${msg.id}"></i>` : ''}
-                            ${isOwn ? `<i class="fas fa-pen" style="margin-left:8px;cursor:pointer;" data-edit-id="${msg.id}"></i> 
-                                       <i class="fas fa-trash" style="margin-left:4px;cursor:pointer;" data-del-id="${msg.id}"></i>` : ''}
+                            ${!isOwn ? escapeHtml(senderName) + ' • ' : ''}${time}
+                            ${isOwn ? ` <i class="fas fa-trash" style="cursor:pointer;margin-left:8px;" data-msg-id="${msg.id}"></i>` : ''}
                         </div>
                     </div>`;
         }).join('');
         
-        // Обработчики
-        document.querySelectorAll('[data-reply-id]').forEach(el => {
-            el.onclick = () => {
-                const msgId = parseInt(el.dataset.replyId);
-                replyToMessage = msgs.find(m => m.id === msgId);
-                const replyText = document.getElementById('replyText');
-                if(replyText && replyToMessage) {
-                    replyText.innerText = replyToMessage.text.substring(0, 50);
-                    document.getElementById('replyIndicator').style.display = 'block';
+        document.querySelectorAll('[data-msg-id]').forEach(el => {
+            el.onclick = async (e) => {
+                if(confirm('Удалить сообщение?')) {
+                    await deleteMessage(parseInt(el.dataset.msgId));
+                    await loadMessages();
                 }
             };
         });
         
-        document.querySelectorAll('[data-edit-id]').forEach(el => {
-            el.onclick = async () => {
-                const mid = parseInt(el.dataset.editId);
-                const newText = prompt('Редактировать сообщение');
-                if(newText) await updateMessage(mid, newText);
-                await refreshMessages();
-            };
-        });
-        
-        document.querySelectorAll('[data-del-id]').forEach(el => {
-            el.onclick = async () => {
-                if(confirm('Удалить сообщение?')) await deleteMessageFromDB(parseInt(el.dataset.delId));
-                await refreshMessages();
-            };
-        });
-        
-        messagesArea.scrollTop = messagesArea.scrollHeight;
+        container.scrollTop = container.scrollHeight;
     }
-
-    async function createGroupDialog() {
-        const users = await getUsers();
-        const otherUsers = users.filter(u => u.id !== currentUser.id);
-        let groupName = prompt('Название группы:', 'Новая группа');
-        if(!groupName) return;
-        
-        let participants = [currentUser.id];
-        let addUsers = prompt(`Добавьте username пользователей через запятую:\nДоступны: ${otherUsers.map(u => u.username).join(', ')}`);
-        
-        if(addUsers) {
-            const usernames = addUsers.split(',').map(s=>s.trim());
-            for(let un of usernames) {
-                let u = await getUserByUsername(un);
-                if(u && !participants.includes(u.id)) participants.push(u.id);
-            }
-        }
-        
-        const newChat = {
-            id: Date.now().toString(),
-            type: 'group',
-            name: groupName,
-            participants: participants,
-            createdAt: Date.now()
-        };
-        await saveChat(newChat);
-        await refreshChats();
-        await refreshChatsList();
-        showNotification(`Группа "${groupName}" создана!`);
+    
+    function escapeHtml(str) {
+        if(!str) return '';
+        return str.replace(/[&<>]/g, function(m) {
+            if(m === '&') return '&amp;';
+            if(m === '<') return '&lt;';
+            if(m === '>') return '&gt;';
+            return m;
+        });
     }
 
     init();
