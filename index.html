@@ -112,7 +112,7 @@
             margin: 4px 0;
         }
 
-        /* Боковое меню */
+        /* Боковое меню (drawer) */
         .drawer {
             position: fixed;
             top: 0;
@@ -201,11 +201,6 @@
             font-weight: bold;
         }
 
-        .auth-card button:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
-
         .avatar-upload-container {
             display: flex;
             flex-direction: column;
@@ -224,26 +219,8 @@
             cursor: pointer;
         }
 
-        .avatar-upload-btn {
-            background: var(--tg-accent);
-            color: white;
-            padding: 8px 16px;
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 12px;
-            display: inline-block;
-            margin-top: 5px;
-        }
-
         .error-msg {
             color: #e53935;
-            font-size: 12px;
-            margin-top: -10px;
-            margin-bottom: 10px;
-        }
-
-        .success-msg {
-            color: #4caf50;
             font-size: 12px;
             margin-top: -10px;
             margin-bottom: 10px;
@@ -327,15 +304,6 @@
         .profile-name { font-weight: bold; }
         .profile-username { font-size: 12px; color: var(--tg-text-secondary); }
 
-        .logout-btn, .settings-btn {
-            background: none;
-            border: none;
-            color: var(--tg-text);
-            cursor: pointer;
-            font-size: 20px;
-            margin-left: 8px;
-        }
-
         .chats-list {
             flex: 1;
             overflow-y: auto;
@@ -364,6 +332,12 @@
             font-weight: bold;
             font-size: 20px;
             position: relative;
+            overflow: hidden;
+        }
+        .chat-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
         .online-indicator {
             width: 12px;
@@ -374,6 +348,7 @@
             bottom: 2px;
             right: 2px;
             border: 2px solid var(--tg-sidebar);
+            z-index: 1;
         }
 
         .chat-details {
@@ -408,6 +383,7 @@
             background: var(--tg-message-in);
             align-self: flex-start;
             position: relative;
+            cursor: context-menu;
         }
         .message.own { align-self: flex-end; background: var(--tg-message-out); }
         .message-text { word-wrap: break-word; }
@@ -486,24 +462,16 @@
         .code-input-group input { flex: 1; text-align: center; font-size: 24px; letter-spacing: 5px; }
         .email-highlight { font-weight: bold; color: var(--tg-accent); }
 
-        .profile-view {
-            text-align: center;
-        }
+        .profile-view { text-align: center; }
         .profile-view .big-avatar {
             width: 100px;
             height: 100px;
             border-radius: 50%;
             margin: 0 auto 16px;
+            object-fit: cover;
         }
-        .profile-view .username {
-            font-size: 24px;
-            font-weight: bold;
-        }
-        .profile-view .user-id {
-            font-size: 12px;
-            color: var(--tg-text-secondary);
-            margin-top: 4px;
-        }
+        .profile-view .username { font-size: 24px; font-weight: bold; }
+        .profile-view .user-id { font-size: 12px; color: var(--tg-text-secondary); margin-top: 4px; }
         .profile-view .about {
             margin-top: 20px;
             padding: 16px;
@@ -516,13 +484,8 @@
             padding: 12px 0;
             border-bottom: 1px solid var(--tg-border);
         }
-        .profile-view .info-label {
-            width: 100px;
-            color: var(--tg-text-secondary);
-        }
-        .profile-view .info-value {
-            flex: 1;
-        }
+        .profile-view .info-label { width: 100px; color: var(--tg-text-secondary); }
+        .profile-view .info-value { flex: 1; }
 
         .session-item {
             display: flex;
@@ -531,10 +494,7 @@
             padding: 12px;
             border-bottom: 1px solid var(--tg-border);
         }
-        .session-item.current {
-            background: var(--tg-sidebar);
-            border-radius: 12px;
-        }
+        .session-item.current { background: var(--tg-sidebar); border-radius: 12px; }
         .terminate-btn {
             background: #e53935;
             color: white;
@@ -573,14 +533,11 @@
 
     // ---------- IndexedDB ----------
     const DB_NAME = 'BWMessengerDB';
-    const DB_VERSION = 9;
+    const DB_VERSION = 10;
     let db = null;
     let currentUser = null;
     let currentChat = null;
     let allChats = [];
-    let pendingRegistrationData = null;
-    let contextMenuMessage = null;
-    let contextMenuType = null;
 
     function openDB() {
         return new Promise((resolve, reject) => {
@@ -607,9 +564,6 @@
                 }
                 if (!db_.objectStoreNames.contains('session')) {
                     db_.createObjectStore('session', { keyPath: 'id' });
-                }
-                if (!db_.objectStoreNames.contains('sessions_list')) {
-                    db_.createObjectStore('sessions_list', { keyPath: 'sessionId' });
                 }
                 if (!db_.objectStoreNames.contains('reset_codes')) {
                     db_.createObjectStore('reset_codes', { keyPath: 'email' });
@@ -729,41 +683,12 @@
     async function setSession(userId) {
         const tx = db.transaction('session', 'readwrite');
         tx.objectStore('session').put({ id: 'current', userId: userId });
-        
-        // Добавляем сессию в список активных сессий
-        const sessionsTx = db.transaction('sessions_list', 'readwrite');
-        const sessionId = `session_${Date.now()}_${Math.random()}`;
-        sessionsTx.objectStore('sessions_list').put({
-            sessionId: sessionId,
-            userId: userId,
-            device: navigator.userAgent.split(' ').slice(-2).join(' '),
-            location: 'Unknown',
-            lastActive: Date.now(),
-            isCurrent: true
-        });
         return new Promise((resolve) => { tx.oncomplete = resolve; });
     }
 
     async function clearSession() {
         const tx = db.transaction('session', 'readwrite');
         tx.objectStore('session').delete('current');
-        return new Promise((resolve) => { tx.oncomplete = resolve; });
-    }
-
-    async function getActiveSessions(userId) {
-        return new Promise((resolve) => {
-            const tx = db.transaction('sessions_list', 'readonly');
-            const all = tx.objectStore('sessions_list').getAll();
-            all.onsuccess = () => {
-                const sessions = all.result.filter(s => s.userId === userId);
-                resolve(sessions);
-            };
-        });
-    }
-
-    async function terminateSession(sessionId) {
-        const tx = db.transaction('sessions_list', 'readwrite');
-        tx.objectStore('sessions_list').delete(sessionId);
         return new Promise((resolve) => { tx.oncomplete = resolve; });
     }
 
@@ -816,7 +741,7 @@
     }
 
     window.clearDatabase = async function() {
-        if(confirm('Очистить всю базу данных? Все пользователи и сообщения будут удалены!')){
+        if(confirm('Очистить всю базу данных?')){
             indexedDB.deleteDatabase(DB_NAME);
             showNotification('База данных очищена. Обновите страницу.');
             setTimeout(() => location.reload(), 1500);
@@ -826,9 +751,8 @@
     async function sendVerificationCode(email, code, type = 'verification') {
         try {
             let messageText = type === 'reset' 
-                ? `Вы запросили сброс пароля в BWMessenger. Ваш код для сброса пароля: ${code}. Код действителен 10 минут.`
-                : `Ваш код подтверждения для регистрации в BWMessenger: ${code}. Введите его для завершения регистрации.`;
-            
+                ? `Вы запросили сброс пароля в BWMessenger. Ваш код: ${code}.`
+                : `Ваш код подтверждения: ${code}.`;
             const result = await emailjs.send(
                 EMAILJS_CONFIG.SERVICE_ID,
                 EMAILJS_CONFIG.TEMPLATE_ID,
@@ -839,41 +763,13 @@
                 return true;
             }
         } catch(e) {
-            console.error('EmailJS Error:', e);
-            showNotification(`❌ Ошибка отправки: ${e.text || 'Проверьте настройки EmailJS'}`, true);
+            showNotification(`❌ Ошибка отправки`, true);
             return false;
         }
         return false;
     }
 
     const app = document.getElementById('app');
-
-    // Обработка URL для прямого открытия чата
-    async function handleUrlUsername() {
-        const path = window.location.pathname;
-        const match = path.match(/\/@(.+)/);
-        if(match && currentUser) {
-            const username = match[1];
-            const user = await getUserByUsername(username);
-            if(user && user.id !== currentUser.id) {
-                let chat = allChats.find(c => c.type === 'private' && 
-                    c.participants && c.participants.includes(currentUser.id) && c.participants.includes(user.id));
-                if(!chat) {
-                    chat = {
-                        id: `private_${Date.now()}`,
-                        type: 'private',
-                        participants: [currentUser.id, user.id],
-                        name: `${user.name} ${user.lastname || ''}`,
-                        createdAt: Date.now()
-                    };
-                    await saveChat(chat);
-                    allChats.push(chat);
-                }
-                await openChat(chat.id);
-                window.history.pushState({}, '', '/');
-            }
-        }
-    }
 
     async function init() {
         await openDB();
@@ -882,8 +778,7 @@
             const users = await getUsers();
             currentUser = users.find(u => u.id === sessionId);
             if(currentUser) {
-                await renderMessenger();
-                await handleUrlUsername();
+                renderMessenger();
                 return;
             }
         }
@@ -906,7 +801,7 @@
                     <div id="registerForm" style="display:none;">
                         <div class="avatar-upload-container">
                             <img id="avatarPreview" class="avatar-preview" src="https://via.placeholder.com/100?text=Avatar">
-                            <label class="avatar-upload-btn"><i class="fas fa-camera"></i> Выбрать фото<input type="file" id="avatarFile" accept="image/*" style="display:none;"></label>
+                            <label class="avatar-upload-btn" style="background:var(--tg-accent);color:white;padding:8px 16px;border-radius:20px;cursor:pointer;"><i class="fas fa-camera"></i> Выбрать фото<input type="file" id="avatarFile" accept="image/*" style="display:none;"></label>
                         </div>
                         <input type="text" id="regName" placeholder="Имя">
                         <input type="text" id="regLastname" placeholder="Фамилия (необязательно)">
@@ -914,7 +809,7 @@
                         <input type="email" id="regEmail" placeholder="Email">
                         <input type="password" id="regPassword" placeholder="Пароль">
                         <button id="doRegisterBtn">Зарегистрироваться</button>
-                        <div class="back-link"><a id="backToLoginFromReg">← Назад к входу</a></div>
+                        <div class="back-link"><a id="backToLoginFromReg">← Назад</a></div>
                     </div>
                     <div id="codeVerificationForm" style="display:none;">
                         <p style="margin-bottom:16px;">Проверьте почту</p>
@@ -924,7 +819,6 @@
                         <div class="back-link"><a id="backToRegisterFromCode">← Назад</a></div>
                     </div>
                     <div id="forgotForm" style="display:none;">
-                        <p style="margin-bottom:16px;">Введите email для сброса пароля</p>
                         <input type="email" id="forgotEmail" placeholder="Ваш Email">
                         <button id="sendResetCodeBtn">Отправить код</button>
                         <div id="resetCodeSection" style="display:none;">
@@ -936,7 +830,6 @@
                         <div class="back-link"><a id="backToLoginFromForgot">← Назад</a></div>
                     </div>
                     <div class="error-msg" id="authError"></div>
-                    <div class="success-msg" id="authSuccess"></div>
                 </div>
             </div>
         `;
@@ -956,15 +849,14 @@
         document.getElementById('doLoginBtn').onclick = async () => {
             const email = document.getElementById('loginEmail').value.trim();
             const password = document.getElementById('loginPassword').value;
-            const errorDiv = document.getElementById('authError');
-            errorDiv.innerText = '';
-            if(!email || !password) { errorDiv.innerText = 'Заполните все поля'; return; }
             const user = await getUserByEmail(email);
             if(user && user.password === password) {
                 currentUser = user;
                 await setSession(currentUser.id);
                 renderMessenger();
-            } else { errorDiv.innerText = 'Неверный email или пароль'; }
+            } else {
+                document.getElementById('authError').innerText = 'Неверный email или пароль';
+            }
         };
 
         document.getElementById('forgotPasswordLink').onclick = () => {
@@ -972,12 +864,10 @@
             document.getElementById('registerForm').style.display = 'none';
             document.getElementById('codeVerificationForm').style.display = 'none';
             document.getElementById('forgotForm').style.display = 'block';
-            document.getElementById('authError').innerText = '';
         };
         document.getElementById('backToLoginFromForgot').onclick = () => {
             document.getElementById('forgotForm').style.display = 'none';
             document.getElementById('loginForm').style.display = 'block';
-            document.getElementById('resetCodeSection').style.display = 'none';
         };
         document.getElementById('backToLoginFromReg').onclick = () => {
             document.getElementById('registerForm').style.display = 'none';
@@ -987,54 +877,36 @@
         document.getElementById('backToRegisterFromCode').onclick = () => {
             document.getElementById('codeVerificationForm').style.display = 'none';
             document.getElementById('registerForm').style.display = 'block';
-            pendingRegistrationData = null;
         };
         document.getElementById('showRegisterBtn').onclick = () => {
             document.getElementById('loginForm').style.display = 'none';
             document.getElementById('registerForm').style.display = 'block';
-            document.getElementById('codeVerificationForm').style.display = 'none';
-            document.getElementById('forgotForm').style.display = 'none';
         };
 
         document.getElementById('sendResetCodeBtn').onclick = async () => {
             const email = document.getElementById('forgotEmail').value.trim();
-            const errorDiv = document.getElementById('authError');
-            const successDiv = document.getElementById('authSuccess');
-            errorDiv.innerText = ''; successDiv.innerText = '';
-            if(!email) { errorDiv.innerText = 'Введите email'; return; }
             const user = await getUserByEmail(email);
-            if(!user) { errorDiv.innerText = 'Пользователь не найден'; return; }
+            if(!user) { document.getElementById('authError').innerText = 'Пользователь не найден'; return; }
             const code = Math.floor(100000 + Math.random() * 900000).toString();
             await saveResetCode(email, code, Date.now() + 10 * 60 * 1000);
-            const sent = await sendVerificationCode(email, code, 'reset');
-            if(sent) {
-                document.getElementById('resetCodeSection').style.display = 'block';
-                successDiv.innerText = 'Код отправлен!';
-                setTimeout(() => successDiv.innerText = '', 5000);
-            }
+            await sendVerificationCode(email, code, 'reset');
+            document.getElementById('resetCodeSection').style.display = 'block';
         };
 
         document.getElementById('resetPasswordBtn').onclick = async () => {
             const email = document.getElementById('forgotEmail').value.trim();
             const code = document.getElementById('resetCode').value.trim();
             const newPassword = document.getElementById('newPassword').value;
-            const confirmPassword = document.getElementById('confirmPassword').value;
-            const errorDiv = document.getElementById('authError');
-            if(!code || !newPassword || !confirmPassword) { errorDiv.innerText = 'Заполните все поля'; return; }
-            if(newPassword !== confirmPassword) { errorDiv.innerText = 'Пароли не совпадают'; return; }
-            if(newPassword.length < 4) { errorDiv.innerText = 'Пароль не менее 4 символов'; return; }
             const resetData = await getResetCode(email);
-            if(!resetData || resetData.code !== code) { errorDiv.innerText = 'Неверный код'; return; }
-            if(Date.now() > resetData.expires) { errorDiv.innerText = 'Код истек'; await deleteResetCode(email); return; }
+            if(!resetData || resetData.code !== code) { document.getElementById('authError').innerText = 'Неверный код'; return; }
             const user = await getUserByEmail(email);
             if(user) {
                 user.password = newPassword;
                 await saveUser(user);
                 await deleteResetCode(email);
-                showNotification('Пароль изменен! Войдите.');
+                showNotification('Пароль изменен!');
                 document.getElementById('forgotForm').style.display = 'none';
                 document.getElementById('loginForm').style.display = 'block';
-                document.getElementById('resetCodeSection').style.display = 'none';
             }
         };
 
@@ -1045,19 +917,14 @@
             const email = document.getElementById('regEmail').value.trim();
             const password = document.getElementById('regPassword').value;
             const avatarPreviewImg = document.getElementById('avatarPreview');
-            const errorDiv = document.getElementById('authError');
-            errorDiv.innerText = '';
-            if(!name || !username || !email || !password) { errorDiv.innerText = 'Заполните все поля'; return; }
-            if(!/^[a-zA-Z0-9_]+$/.test(username)) { errorDiv.innerText = 'Username только буквы, цифры, _'; return; }
-            if(await getUserByEmail(email)) { errorDiv.innerText = 'Email уже используется'; return; }
-            if(await getUserByUsername(username)) { errorDiv.innerText = 'Username уже занят'; return; }
+            if(!name || !username || !email || !password) { document.getElementById('authError').innerText = 'Заполните поля'; return; }
+            if(await getUserByEmail(email)) { document.getElementById('authError').innerText = 'Email уже используется'; return; }
+            if(await getUserByUsername(username)) { document.getElementById('authError').innerText = 'Username уже занят'; return; }
             const code = Math.floor(100000 + Math.random() * 900000).toString();
             let avatarBase64 = null;
             if(avatarPreviewImg.src && !avatarPreviewImg.src.includes('placeholder')) avatarBase64 = avatarPreviewImg.src;
-            pendingRegistrationData = { name, lastname, username, email, password, avatarBase64 };
-            const sent = await sendVerificationCode(email, code, 'verification');
-            if(!sent) { errorDiv.innerText = 'Ошибка отправки'; return; }
-            await saveTempCode(email, code, pendingRegistrationData);
+            await saveTempCode(email, code, { name, lastname, username, email, password, avatarBase64 });
+            await sendVerificationCode(email, code, 'verification');
             document.getElementById('verificationEmail').innerText = email;
             document.getElementById('registerForm').style.display = 'none';
             document.getElementById('codeVerificationForm').style.display = 'block';
@@ -1066,10 +933,8 @@
         document.getElementById('verifyCodeBtn').onclick = async () => {
             const code = document.getElementById('verificationCode').value.trim();
             const email = document.getElementById('verificationEmail').innerText;
-            const errorDiv = document.getElementById('authError');
             const tempData = await getTempCode(email);
-            if(!tempData || tempData.code !== code) { errorDiv.innerText = 'Неверный код'; return; }
-            if(Date.now() > tempData.expires) { errorDiv.innerText = 'Код истек'; await deleteTempCode(email); return; }
+            if(!tempData || tempData.code !== code) { document.getElementById('authError').innerText = 'Неверный код'; return; }
             const data = tempData.data;
             const newUser = {
                 id: Date.now().toString(),
@@ -1137,7 +1002,6 @@
             </div>
         `;
 
-        // Меню
         const drawer = document.getElementById('drawer');
         const overlay = document.getElementById('drawerOverlay');
         document.getElementById('menuBtn').onclick = () => { drawer.classList.add('open'); overlay.classList.add('show'); };
@@ -1145,7 +1009,7 @@
 
         document.getElementById('drawerProfile').onclick = () => { showProfileModal(currentUser); drawer.classList.remove('open'); overlay.classList.remove('show'); };
         document.getElementById('drawerSettings').onclick = () => { showSettingsModal(); drawer.classList.remove('open'); overlay.classList.remove('show'); };
-        document.getElementById('drawerSessions').onclick = () => { showSessionsModal(); drawer.classList.remove('open'); overlay.classList.remove('show'); };
+        document.getElementById('drawerSessions').onclick = () => { showNotification('В разработке'); drawer.classList.remove('open'); overlay.classList.remove('show'); };
         document.getElementById('drawerPrivacy').onclick = () => { showNotification('В разработке'); drawer.classList.remove('open'); overlay.classList.remove('show'); };
         document.getElementById('drawerLogout').onclick = async () => { await clearSession(); location.reload(); };
 
@@ -1159,6 +1023,7 @@
             await renderChatsList();
         };
 
+        // Поиск пользователей
         const searchInput = document.getElementById('searchUsers');
         const searchResults = document.getElementById('searchResults');
         searchInput.oninput = async (e) => {
@@ -1166,17 +1031,16 @@
             if(query.length < 2) { searchResults.style.display = 'none'; return; }
             const users = await getUsers();
             const filtered = users.filter(u => u.id !== currentUser.id && 
-                (u.username.toLowerCase().includes(query) || u.name.toLowerCase().includes(query) || (u.lastname && u.lastname.toLowerCase().includes(query))));
+                (u.username.toLowerCase().includes(query) || u.name.toLowerCase().includes(query)));
             if(filtered.length > 0) {
                 searchResults.innerHTML = filtered.map(u => `<div class="search-result-item" data-username="${u.username}">
                     <img src="${u.avatar || 'https://via.placeholder.com/32'}" style="width:32px;height:32px;border-radius:50%;">
-                    <div><strong>${escapeHtml(u.name)} ${escapeHtml(u.lastname || '')}</strong><br><small>@${escapeHtml(u.username)}</small></div>
+                    <div><strong>${escapeHtml(u.name)}</strong><br><small>@${escapeHtml(u.username)}</small></div>
                 </div>`).join('');
                 searchResults.style.display = 'block';
                 document.querySelectorAll('.search-result-item').forEach(el => {
                     el.onclick = async () => {
-                        const username = el.dataset.username;
-                        const targetUser = await getUserByUsername(username);
+                        const targetUser = await getUserByUsername(el.dataset.username);
                         if(targetUser) {
                             let chat = allChats.find(c => c.type === 'private' && c.participants?.includes(currentUser.id) && c.participants?.includes(targetUser.id));
                             if(!chat) {
@@ -1191,7 +1055,7 @@
                     };
                 });
             } else {
-                searchResults.innerHTML = `<div class="search-result-item" style="color:var(--tg-text-secondary);">Пользователь "${query}" не найден</div>`;
+                searchResults.innerHTML = `<div class="search-result-item" style="color:var(--tg-text-secondary);">❌ Пользователь "${query}" не найден</div>`;
                 searchResults.style.display = 'block';
             }
         };
@@ -1199,39 +1063,25 @@
             if(searchInput && !searchInput.contains(e.target) && !searchResults.contains(e.target)) searchResults.style.display = 'none';
         });
 
-        // Обработка команды /my_id
+        // Отправка сообщений и команда /my_id
         const messageInput = document.getElementById('messageInput');
         const sendBtn = document.getElementById('sendBtn');
-        if(messageInput) {
-            messageInput.addEventListener('keypress', async (e) => {
-                if(e.key === 'Enter' && messageInput.value.trim()) {
-                    if(messageInput.value.trim() === '/my_id') {
-                        showNotification(`Ваш ID: ${currentUser.id}`);
-                        messageInput.value = '';
-                        return;
-                    }
-                    if(currentChat) {
-                        await saveMessage({ chatId: currentChat.id, senderId: currentUser.id, text: messageInput.value, timestamp: Date.now() });
-                        messageInput.value = '';
-                        await loadMessages();
-                    }
-                }
-            });
-        }
-        if(sendBtn) {
-            sendBtn.onclick = async () => {
-                if(messageInput.value.trim() && currentChat) {
-                    if(messageInput.value.trim() === '/my_id') {
-                        showNotification(`Ваш ID: ${currentUser.id}`);
-                        messageInput.value = '';
-                        return;
-                    }
-                    await saveMessage({ chatId: currentChat.id, senderId: currentUser.id, text: messageInput.value, timestamp: Date.now() });
+        
+        async function handleSendMessage() {
+            if(messageInput.value.trim() && currentChat) {
+                if(messageInput.value.trim() === '/my_id') {
+                    showNotification(`Ваш ID: ${currentUser.id}`);
                     messageInput.value = '';
-                    await loadMessages();
+                    return;
                 }
-            };
+                await saveMessage({ chatId: currentChat.id, senderId: currentUser.id, text: messageInput.value, timestamp: Date.now() });
+                messageInput.value = '';
+                await loadMessages();
+            }
         }
+        
+        if(messageInput) messageInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') handleSendMessage(); });
+        if(sendBtn) sendBtn.onclick = handleSendMessage;
 
         await renderChatsList();
     }
@@ -1248,9 +1098,8 @@
                     <div class="user-id">@${escapeHtml(user.username)}</div>
                     <div class="user-id">ID: ${user.id}</div>
                     <div class="about">
-                        <div class="info-row"><div class="info-label">О себе:</div><div class="info-value"><textarea id="aboutText" rows="3" style="width:100%;padding:8px;border-radius:12px;border:1px solid var(--tg-border);background:var(--tg-bg);color:var(--tg-text);">${escapeHtml(user.about || '')}</textarea></div></div>
+                        <div class="info-row"><div class="info-label">О себе:</div><div class="info-value"><textarea id="aboutText" rows="3" style="width:100%;padding:8px;border-radius:12px;">${escapeHtml(user.about || '')}</textarea></div></div>
                         <div class="info-row"><div class="info-label">Email:</div><div class="info-value">${escapeHtml(user.email)}</div></div>
-                        <div class="info-row"><div class="info-label">Имя пользователя:</div><div class="info-value">@${escapeHtml(user.username)}</div></div>
                     </div>
                     <button id="saveAboutBtn" style="margin-top:16px;padding:10px;background:var(--tg-accent);color:white;border:none;border-radius:12px;width:100%;">Сохранить</button>
                 </div>
@@ -1260,11 +1109,9 @@
         modal.style.display = 'flex';
         modal.querySelector('.close-modal').onclick = () => modal.remove();
         modal.querySelector('#saveAboutBtn').onclick = async () => {
-            const about = modal.querySelector('#aboutText').value;
-            await updateUserAbout(user.id, about);
+            await updateUserAbout(user.id, modal.querySelector('#aboutText').value);
             showNotification('Профиль обновлен');
             modal.remove();
-            renderMessenger();
         };
     }
 
@@ -1274,76 +1121,28 @@
         modal.innerHTML = `
             <div class="modal-content">
                 <div class="modal-header"><h3>Настройки</h3><button class="close-modal">&times;</button></div>
-                <div class="info-row"><div class="info-label">Имя:</div><div class="info-value"><input type="text" id="settingsName" value="${escapeHtml(currentUser.name)}" style="width:100%;padding:8px;border-radius:12px;border:1px solid var(--tg-border);"></div></div>
-                <div class="info-row"><div class="info-label">Фамилия:</div><div class="info-value"><input type="text" id="settingsLastname" value="${escapeHtml(currentUser.lastname || '')}" style="width:100%;padding:8px;border-radius:12px;border:1px solid var(--tg-border);"></div></div>
-                <div class="info-row"><div class="info-label">Username:</div><div class="info-value"><input type="text" id="settingsUsername" value="${escapeHtml(currentUser.username)}" style="width:100%;padding:8px;border-radius:12px;border:1px solid var(--tg-border);"></div></div>
-                <div class="info-row"><div class="info-label">Email:</div><div class="info-value"><input type="email" id="settingsEmail" value="${escapeHtml(currentUser.email)}" style="width:100%;padding:8px;border-radius:12px;border:1px solid var(--tg-border);"></div></div>
-                <div class="info-row"><div class="info-label">Новый пароль:</div><div class="info-value"><input type="password" id="settingsPassword" placeholder="Оставьте пустым чтобы не менять" style="width:100%;padding:8px;border-radius:12px;border:1px solid var(--tg-border);"></div></div>
-                <button id="saveSettingsBtn" style="margin-top:16px;padding:10px;background:var(--tg-accent);color:white;border:none;border-radius:12px;width:100%;">Сохранить изменения</button>
+                <div class="info-row"><div class="info-label">Имя:</div><div class="info-value"><input type="text" id="settingsName" value="${escapeHtml(currentUser.name)}" style="width:100%;padding:8px;border-radius:12px;"></div></div>
+                <div class="info-row"><div class="info-label">Фамилия:</div><div class="info-value"><input type="text" id="settingsLastname" value="${escapeHtml(currentUser.lastname || '')}" style="width:100%;padding:8px;border-radius:12px;"></div></div>
+                <div class="info-row"><div class="info-label">Username:</div><div class="info-value"><input type="text" id="settingsUsername" value="${escapeHtml(currentUser.username)}" style="width:100%;padding:8px;border-radius:12px;"></div></div>
+                <div class="info-row"><div class="info-label">Email:</div><div class="info-value"><input type="email" id="settingsEmail" value="${escapeHtml(currentUser.email)}" style="width:100%;padding:8px;border-radius:12px;"></div></div>
+                <div class="info-row"><div class="info-label">Новый пароль:</div><div class="info-value"><input type="password" id="settingsPassword" placeholder="Оставьте пустым" style="width:100%;padding:8px;border-radius:12px;"></div></div>
+                <button id="saveSettingsBtn" style="margin-top:16px;padding:10px;background:var(--tg-accent);color:white;border:none;border-radius:12px;width:100%;">Сохранить</button>
             </div>
         `;
         document.body.appendChild(modal);
         modal.style.display = 'flex';
         modal.querySelector('.close-modal').onclick = () => modal.remove();
         modal.querySelector('#saveSettingsBtn').onclick = async () => {
-            const newName = modal.querySelector('#settingsName').value.trim();
-            const newLastname = modal.querySelector('#settingsLastname').value.trim();
-            const newUsername = modal.querySelector('#settingsUsername').value.trim();
-            const newEmail = modal.querySelector('#settingsEmail').value.trim();
+            currentUser.name = modal.querySelector('#settingsName').value.trim();
+            currentUser.lastname = modal.querySelector('#settingsLastname').value.trim();
+            currentUser.username = modal.querySelector('#settingsUsername').value.trim();
+            currentUser.email = modal.querySelector('#settingsEmail').value.trim();
             const newPassword = modal.querySelector('#settingsPassword').value;
-            if(!newName || !newUsername || !newEmail) { showNotification('Заполните обязательные поля'); return; }
-            if(!/^[a-zA-Z0-9_]+$/.test(newUsername)) { showNotification('Username только буквы, цифры, _'); return; }
-            const existingUser = await getUserByUsername(newUsername);
-            if(existingUser && existingUser.id !== currentUser.id) { showNotification('Username уже занят'); return; }
-            const existingEmail = await getUserByEmail(newEmail);
-            if(existingEmail && existingEmail.id !== currentUser.id) { showNotification('Email уже используется'); return; }
-            currentUser.name = newName;
-            currentUser.lastname = newLastname;
-            currentUser.username = newUsername;
-            currentUser.email = newEmail;
             if(newPassword) currentUser.password = newPassword;
             await saveUser(currentUser);
             showNotification('Настройки сохранены');
             modal.remove();
             renderMessenger();
-        };
-    }
-
-    async function showSessionsModal() {
-        const sessions = await getActiveSessions(currentUser.id);
-        const modal = document.createElement('div');
-        modal.className = 'modal';
-        modal.innerHTML = `
-            <div class="modal-content">
-                <div class="modal-header"><h3>Активные сеансы</h3><button class="close-modal">&times;</button></div>
-                ${sessions.map(s => `
-                    <div class="session-item ${s.isCurrent ? 'current' : ''}">
-                        <div><strong>${escapeHtml(s.device)}</strong><br><small>${escapeHtml(s.location)} • ${new Date(s.lastActive).toLocaleString()}</small></div>
-                        ${!s.isCurrent ? `<button class="terminate-btn" data-session="${s.sessionId}">Завершить</button>` : '<span style="color:green;">Текущее устройство</span>'}
-                    </div>
-                `).join('')}
-                <button id="terminateAllBtn" style="margin-top:16px;padding:10px;background:#e53935;color:white;border:none;border-radius:12px;width:100%;">Завершить все другие сеансы</button>
-            </div>
-        `;
-        document.body.appendChild(modal);
-        modal.style.display = 'flex';
-        modal.querySelector('.close-modal').onclick = () => modal.remove();
-        modal.querySelectorAll('.terminate-btn').forEach(btn => {
-            btn.onclick = async () => {
-                await terminateSession(btn.dataset.session);
-                showNotification('Сеанс завершен');
-                modal.remove();
-                showSessionsModal();
-            };
-        });
-        modal.querySelector('#terminateAllBtn').onclick = async () => {
-            const sessionsList = await getActiveSessions(currentUser.id);
-            for(const s of sessionsList) {
-                if(!s.isCurrent) await terminateSession(s.sessionId);
-            }
-            showNotification('Все другие сеансы завершены');
-            modal.remove();
-            showSessionsModal();
         };
     }
 
@@ -1361,22 +1160,26 @@
         });
         container.innerHTML = myChats.map(chat => {
             let displayName = chat.name;
-            let avatar = '💬';
+            let avatarHtml = '';
             let isOnline = false;
             if(chat.type === 'private') {
                 const otherId = chat.participants.find(id => id !== myId);
                 const other = userMap.get(otherId);
                 displayName = other ? `${other.name} ${other.lastname || ''}` : 'Unknown';
-                avatar = displayName[0].toUpperCase();
                 isOnline = other?.online || false;
+                if(other?.avatar) {
+                    avatarHtml = `<img src="${other.avatar}">`;
+                } else {
+                    avatarHtml = displayName[0].toUpperCase();
+                }
             } else if(chat.type === 'saved') {
                 displayName = '⭐ Избранное';
-                avatar = '⭐';
+                avatarHtml = '⭐';
             } else {
-                avatar = chat.name[0].toUpperCase();
+                avatarHtml = chat.name[0].toUpperCase();
             }
             return `<div class="chat-item" data-chat-id="${chat.id}">
-                        <div class="chat-avatar">${avatar}${isOnline ? '<div class="online-indicator"></div>' : ''}</div>
+                        <div class="chat-avatar">${typeof avatarHtml === 'string' && avatarHtml.startsWith('<img') ? avatarHtml : avatarHtml}${isOnline ? '<div class="online-indicator"></div>' : ''}</div>
                         <div class="chat-details">
                             <div class="chat-name">${escapeHtml(displayName)}</div>
                             <div class="chat-last-msg">Чат</div>
@@ -1395,16 +1198,20 @@
         const users = await getUsers();
         const myId = currentUser.id;
         let headerText = '';
+        let headerAvatar = '';
         if(currentChat.type === 'private') {
             const otherId = currentChat.participants.find(id => id !== myId);
             const other = users.find(u => u.id === otherId);
             headerText = other ? `${other.name} ${other.lastname || ''}` : 'Чат';
+            headerAvatar = other?.avatar ? `<img class="profile-avatar" src="${other.avatar}" style="width:40px;height:40px;">` : `<div class="chat-avatar" style="width:40px;height:40px;">${headerText[0]}</div>`;
         } else if(currentChat.type === 'saved') {
             headerText = '⭐ Избранное';
+            headerAvatar = '<div class="chat-avatar" style="width:40px;height:40px;">⭐</div>';
         } else {
             headerText = currentChat.name;
+            headerAvatar = `<div class="chat-avatar" style="width:40px;height:40px;">${headerText[0]}</div>`;
         }
-        document.getElementById('chatHeader').innerHTML = `<strong>${escapeHtml(headerText)}</strong>`;
+        document.getElementById('chatHeader').innerHTML = `${headerAvatar}<strong>${escapeHtml(headerText)}</strong>`;
         await loadMessages();
         document.querySelectorAll('.chat-item').forEach(el => el.classList.remove('active'));
         const activeEl = document.querySelector(`.chat-item[data-chat-id="${chatId}"]`);
@@ -1417,7 +1224,7 @@
         const users = await getUsers();
         const container = document.getElementById('messagesArea');
         if(messages.length === 0) {
-            container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--tg-text-secondary);">Нет сообщений</div>';
+            container.innerHTML = '<div style="text-align:center;padding:20px;">Нет сообщений</div>';
             return;
         }
         container.innerHTML = messages.map(msg => {
@@ -1433,6 +1240,7 @@
         container.querySelectorAll('.message').forEach(msgEl => {
             msgEl.addEventListener('contextmenu', (e) => {
                 e.preventDefault();
+                e.stopPropagation();
                 const msgId = parseInt(msgEl.dataset.msgId);
                 const msgText = msgEl.dataset.msgText;
                 const msgSender = msgEl.dataset.msgSender;
@@ -1485,7 +1293,7 @@
                     await navigator.clipboard.writeText(msgText);
                     showNotification('Текст скопирован');
                 } else if(action === 'reply') {
-                    showNotification('Ответ на сообщение (функция в разработке)');
+                    showNotification('Ответ на сообщение (в разработке)');
                 } else if(action === 'forward') {
                     const targetUsername = prompt('Введите username получателя:');
                     if(targetUsername) {
@@ -1513,7 +1321,7 @@
                 menu.remove();
             };
         });
-        setTimeout(() => { if(menu) menu.remove(); }, 5000);
+        setTimeout(() => { if(menu && menu.parentNode) menu.remove(); }, 5000);
     }
 
     function escapeHtml(str) { if(!str) return ''; return str.replace(/[&<>]/g, function(m) { if(m === '&') return '&amp;'; if(m === '<') return '&lt;'; if(m === '>') return '&gt;'; return m; }); }
