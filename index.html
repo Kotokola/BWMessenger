@@ -168,7 +168,7 @@
         }
 
         .messenger {
-            display: none;
+            display: block;
             height: 100vh;
             width: 100%;
         }
@@ -406,6 +406,25 @@
             background: var(--tg-hover);
         }
 
+        /* Стили для ввода кода */
+        .code-input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        
+        .code-input-group input {
+            flex: 1;
+            text-align: center;
+            font-size: 24px;
+            letter-spacing: 5px;
+        }
+        
+        .email-highlight {
+            font-weight: bold;
+            color: var(--tg-accent);
+        }
+
         @media (max-width: 640px) {
             .sidebar {
                 width: 100%;
@@ -434,11 +453,12 @@
 
     // ---------- IndexedDB ----------
     const DB_NAME = 'BWMessengerDB';
-    const DB_VERSION = 7;
+    const DB_VERSION = 8;
     let db = null;
     let currentUser = null;
     let currentChat = null;
     let allChats = [];
+    let pendingRegistrationData = null;
 
     function openDB() {
         return new Promise((resolve, reject) => {
@@ -468,6 +488,9 @@
                 }
                 if (!db_.objectStoreNames.contains('reset_codes')) {
                     db_.createObjectStore('reset_codes', { keyPath: 'email' });
+                }
+                if (!db_.objectStoreNames.contains('temp_codes')) {
+                    db_.createObjectStore('temp_codes', { keyPath: 'email' });
                 }
             };
         });
@@ -569,6 +592,26 @@
     async function clearSession() {
         const tx = db.transaction('session', 'readwrite');
         tx.objectStore('session').delete('current');
+        return new Promise((resolve) => { tx.oncomplete = resolve; });
+    }
+
+    async function saveTempCode(email, code, data) {
+        const tx = db.transaction('temp_codes', 'readwrite');
+        tx.objectStore('temp_codes').put({ email: email, code: code, data: data, expires: Date.now() + 10 * 60 * 1000 });
+        return new Promise((resolve) => { tx.oncomplete = resolve; });
+    }
+
+    async function getTempCode(email) {
+        return new Promise((resolve) => {
+            const tx = db.transaction('temp_codes', 'readonly');
+            const req = tx.objectStore('temp_codes').get(email);
+            req.onsuccess = () => resolve(req.result);
+        });
+    }
+
+    async function deleteTempCode(email) {
+        const tx = db.transaction('temp_codes', 'readwrite');
+        tx.objectStore('temp_codes').delete(email);
         return new Promise((resolve) => { tx.oncomplete = resolve; });
     }
 
@@ -688,6 +731,17 @@
                             <a id="backToLoginFromReg">← Назад к входу</a>
                         </div>
                     </div>
+                    <div id="codeVerificationForm" style="display:none;">
+                        <p style="margin-bottom:16px;">Проверьте почту</p>
+                        <p style="margin-bottom:16px;">Введите код, который пришёл на электронную почту <span id="verificationEmail" class="email-highlight"></span>.</p>
+                        <div class="code-input-group">
+                            <input type="text" id="verificationCode" placeholder="000000" maxlength="6">
+                        </div>
+                        <button id="verifyCodeBtn">Подтвердить код</button>
+                        <div class="back-link">
+                            <a id="backToRegisterFromCode">← Назад</a>
+                        </div>
+                    </div>
                     <div id="forgotForm" style="display:none;">
                         <p style="margin-bottom:16px;">Введите email, и мы отправим код для сброса пароля</p>
                         <input type="email" id="forgotEmail" placeholder="Ваш Email">
@@ -712,7 +766,6 @@
         const avatarPreview = document.getElementById('avatarPreview');
         const avatarFile = document.getElementById('avatarFile');
         
-        // Обработчик для кнопки выбора файла
         const uploadBtn = document.querySelector('.avatar-upload-btn');
         if(uploadBtn) {
             uploadBtn.onclick = () => avatarFile.click();
@@ -734,10 +787,8 @@
             const email = document.getElementById('loginEmail').value.trim();
             const password = document.getElementById('loginPassword').value;
             const errorDiv = document.getElementById('authError');
-            const successDiv = document.getElementById('authSuccess');
             
             errorDiv.innerText = '';
-            successDiv.innerText = '';
             
             if(!email || !password) {
                 errorDiv.innerText = 'Заполните все поля';
@@ -757,6 +808,7 @@
         document.getElementById('forgotPasswordLink').onclick = () => {
             document.getElementById('loginForm').style.display = 'none';
             document.getElementById('registerForm').style.display = 'none';
+            document.getElementById('codeVerificationForm').style.display = 'none';
             document.getElementById('forgotForm').style.display = 'block';
             document.getElementById('authError').innerText = '';
             document.getElementById('authSuccess').innerText = '';
@@ -768,14 +820,20 @@
             document.getElementById('loginForm').style.display = 'block';
             document.getElementById('resetCodeSection').style.display = 'none';
             document.getElementById('authError').innerText = '';
-            document.getElementById('authSuccess').innerText = '';
         };
 
         document.getElementById('backToLoginFromReg').onclick = () => {
             document.getElementById('registerForm').style.display = 'none';
+            document.getElementById('codeVerificationForm').style.display = 'none';
             document.getElementById('loginForm').style.display = 'block';
             document.getElementById('authError').innerText = '';
-            document.getElementById('authSuccess').innerText = '';
+        };
+        
+        document.getElementById('backToRegisterFromCode').onclick = () => {
+            document.getElementById('codeVerificationForm').style.display = 'none';
+            document.getElementById('registerForm').style.display = 'block';
+            document.getElementById('authError').innerText = '';
+            pendingRegistrationData = null;
         };
 
         // Отправка кода для сброса пароля
@@ -863,6 +921,7 @@
         document.getElementById('showRegisterBtn').onclick = () => {
             document.getElementById('loginForm').style.display = 'none';
             document.getElementById('registerForm').style.display = 'block';
+            document.getElementById('codeVerificationForm').style.display = 'none';
             document.getElementById('forgotForm').style.display = 'none';
             document.getElementById('authError').innerText = '';
             document.getElementById('authSuccess').innerText = '';
@@ -876,10 +935,8 @@
             const password = document.getElementById('regPassword').value;
             const avatarPreviewImg = document.getElementById('avatarPreview');
             const errorDiv = document.getElementById('authError');
-            const successDiv = document.getElementById('authSuccess');
             
             errorDiv.innerText = '';
-            successDiv.innerText = '';
 
             if(!name || !username || !email || !password) {
                 errorDiv.innerText = 'Заполните обязательные поля (Имя, Username, Email, Пароль)';
@@ -899,34 +956,63 @@
             }
 
             const code = Math.floor(100000 + Math.random() * 900000).toString();
-            const sent = await sendVerificationCode(email, code, 'verification');
-            if(!sent) {
-                errorDiv.innerText = 'Не удалось отправить код';
-                return;
-            }
-
-            const userCode = prompt(`Введите код подтверждения, отправленный на ${email}`);
-            if(userCode !== code) {
-                errorDiv.innerText = 'Неверный код подтверждения';
-                return;
-            }
-
+            
             let avatarBase64 = null;
             if(avatarPreviewImg.src && !avatarPreviewImg.src.includes('placeholder')) {
                 avatarBase64 = avatarPreviewImg.src;
             }
 
+            pendingRegistrationData = {
+                name, lastname, username, email, password, avatarBase64
+            };
+
+            const sent = await sendVerificationCode(email, code, 'verification');
+            if(!sent) {
+                errorDiv.innerText = 'Не удалось отправить код';
+                return;
+            }
+            
+            await saveTempCode(email, code, pendingRegistrationData);
+            
+            document.getElementById('verificationEmail').innerText = email;
+            document.getElementById('registerForm').style.display = 'none';
+            document.getElementById('codeVerificationForm').style.display = 'block';
+            errorDiv.innerText = '';
+        };
+        
+        document.getElementById('verifyCodeBtn').onclick = async () => {
+            const code = document.getElementById('verificationCode').value.trim();
+            const email = document.getElementById('verificationEmail').innerText;
+            const errorDiv = document.getElementById('authError');
+            
+            const tempData = await getTempCode(email);
+            
+            if(!tempData || tempData.code !== code) {
+                errorDiv.innerText = 'Неверный код подтверждения';
+                return;
+            }
+            
+            if(Date.now() > tempData.expires) {
+                errorDiv.innerText = 'Код истек. Запросите новый.';
+                await deleteTempCode(email);
+                return;
+            }
+            
+            const data = tempData.data;
             const newUser = {
                 id: Date.now().toString(),
-                name: name,
-                lastname: lastname,
-                username: username,
-                email: email,
-                password: password,
-                avatar: avatarBase64,
+                name: data.name,
+                lastname: data.lastname,
+                username: data.username,
+                email: data.email,
+                password: data.password,
+                avatar: data.avatarBase64,
                 createdAt: Date.now()
             };
+            
             await saveUser(newUser);
+            await deleteTempCode(email);
+            
             currentUser = newUser;
             await setSession(currentUser.id);
             renderMessenger();
@@ -955,7 +1041,7 @@
                         <div class="profile-header">
                             <img class="profile-avatar" src="${currentUser.avatar || 'https://via.placeholder.com/48'}">
                             <div class="profile-info">
-                                <div class="profile-name">${escapeHtml(currentUser.name)} ${escapeHtml(currentUser.lastname)}</div>
+                                <div class="profile-name">${escapeHtml(currentUser.name)} ${escapeHtml(currentUser.lastname || '')}</div>
                                 <div class="profile-username">@${escapeHtml(currentUser.username)}</div>
                             </div>
                             <button class="theme-toggle" id="themeToggle"><i class="fas fa-moon"></i></button>
@@ -1002,14 +1088,14 @@
             const filtered = users.filter(u => u.id !== currentUser.id && 
                 (u.username.toLowerCase().includes(query) || 
                  u.name.toLowerCase().includes(query) || 
-                 u.lastname.toLowerCase().includes(query)));
+                 (u.lastname && u.lastname.toLowerCase().includes(query))));
             
             if(filtered.length > 0) {
                 searchResults.innerHTML = filtered.map(u => `
                     <div class="search-result-item" data-user-id="${u.id}">
                         <img src="${u.avatar || 'https://via.placeholder.com/32'}" style="width:32px;height:32px;border-radius:50%;">
                         <div>
-                            <strong>${escapeHtml(u.name)} ${escapeHtml(u.lastname)}</strong><br>
+                            <strong>${escapeHtml(u.name)} ${escapeHtml(u.lastname || '')}</strong><br>
                             <small>@${escapeHtml(u.username)}</small>
                         </div>
                     </div>
@@ -1028,7 +1114,7 @@
                                     id: `private_${Date.now()}`,
                                     type: 'private',
                                     participants: [currentUser.id, targetUser.id],
-                                    name: `${targetUser.name} ${targetUser.lastname}`,
+                                    name: `${targetUser.name} ${targetUser.lastname || ''}`,
                                     createdAt: Date.now()
                                 };
                                 await saveChat(chat);
@@ -1087,7 +1173,7 @@
             if(chat.type === 'private') {
                 const otherId = chat.participants.find(id => id !== myId);
                 const other = users.find(u => u.id === otherId);
-                displayName = other ? `${other.name} ${other.lastname}` : 'Unknown';
+                displayName = other ? `${other.name} ${other.lastname || ''}` : 'Unknown';
                 avatar = displayName[0].toUpperCase();
             } else if(chat.type === 'saved') {
                 displayName = '⭐ Избранное';
@@ -1123,7 +1209,7 @@
         if(currentChat.type === 'private') {
             const otherId = currentChat.participants.find(id => id !== myId);
             const other = users.find(u => u.id === otherId);
-            headerText = other ? `${other.name} ${other.lastname}` : 'Чат';
+            headerText = other ? `${other.name} ${other.lastname || ''}` : 'Чат';
         } else if(currentChat.type === 'saved') {
             headerText = '⭐ Избранное';
         } else {
@@ -1173,7 +1259,7 @@
         container.innerHTML = messages.map(msg => {
             const isOwn = msg.senderId === currentUser.id;
             const sender = users.find(u => u.id === msg.senderId);
-            const senderName = sender ? `${sender.name} ${sender.lastname}` : 'Unknown';
+            const senderName = sender ? `${sender.name} ${sender.lastname || ''}` : 'Unknown';
             const time = new Date(msg.timestamp).toLocaleTimeString();
             return `<div class="message ${isOwn ? 'own' : ''}">
                         <div class="message-text">${escapeHtml(msg.text)}</div>
