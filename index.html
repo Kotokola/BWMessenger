@@ -112,6 +112,38 @@
             margin-bottom: 10px;
         }
 
+        .success-msg {
+            color: #4caf50;
+            font-size: 12px;
+            margin-top: -10px;
+            margin-bottom: 10px;
+        }
+
+        .forgot-link {
+            text-align: right;
+            margin-top: -12px;
+            margin-bottom: 16px;
+        }
+
+        .forgot-link a {
+            color: var(--tg-accent);
+            font-size: 12px;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .back-link {
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        .back-link a {
+            color: var(--tg-text-secondary);
+            font-size: 12px;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
         .messenger {
             display: none;
             height: 100vh;
@@ -379,7 +411,7 @@
 
     // ---------- IndexedDB ----------
     const DB_NAME = 'BWMessengerDB';
-    const DB_VERSION = 5;
+    const DB_VERSION = 6;
     let db = null;
     let currentUser = null;
     let currentChat = null;
@@ -411,6 +443,9 @@
                 if (!db_.objectStoreNames.contains('session')) {
                     db_.createObjectStore('session', { keyPath: 'id' });
                 }
+                if (!db_.objectStoreNames.contains('reset_codes')) {
+                    db_.createObjectStore('reset_codes', { keyPath: 'email' });
+                }
             };
         });
     }
@@ -429,6 +464,16 @@
             tx.objectStore('users').put(user);
             tx.oncomplete = () => resolve();
         });
+    }
+
+    async function updateUserPassword(email, newPassword) {
+        const user = await getUserByEmail(email);
+        if(user) {
+            user.password = newPassword;
+            await saveUser(user);
+            return true;
+        }
+        return false;
     }
 
     async function getUserByEmail(email) {
@@ -504,6 +549,27 @@
         return new Promise((resolve) => { tx.oncomplete = resolve; });
     }
 
+    // Сохранение кода сброса
+    async function saveResetCode(email, code, expires) {
+        const tx = db.transaction('reset_codes', 'readwrite');
+        tx.objectStore('reset_codes').put({ email: email, code: code, expires: expires });
+        return new Promise((resolve) => { tx.oncomplete = resolve; });
+    }
+
+    async function getResetCode(email) {
+        return new Promise((resolve) => {
+            const tx = db.transaction('reset_codes', 'readonly');
+            const req = tx.objectStore('reset_codes').get(email);
+            req.onsuccess = () => resolve(req.result);
+        });
+    }
+
+    async function deleteResetCode(email) {
+        const tx = db.transaction('reset_codes', 'readwrite');
+        tx.objectStore('reset_codes').delete(email);
+        return new Promise((resolve) => { tx.oncomplete = resolve; });
+    }
+
     function showNotification(msg, isError = false) {
         const div = document.createElement('div');
         div.className = `notification ${isError ? 'error' : ''}`;
@@ -521,24 +587,34 @@
         }
     };
 
-    async function sendVerificationCode(email, code) {
+    async function sendEmail(toEmail, code, type = 'verification') {
         try {
+            let subject, message;
+            if(type === 'reset') {
+                subject = 'Сброс пароля BWMessenger';
+                message = `Код для сброса пароля: ${code}. Если вы не запрашивали сброс пароля, проигнорируйте это письмо. Код действителен 10 минут.`;
+            } else {
+                subject = 'Код подтверждения BWMessenger';
+                message = `Ваш код подтверждения: ${code}. Введите его для завершения регистрации.`;
+            }
+            
             const result = await emailjs.send(
                 EMAILJS_CONFIG.SERVICE_ID,
                 EMAILJS_CONFIG.TEMPLATE_ID,
                 {
-                    to_email: email,
+                    to_email: toEmail,
                     verification_code: code,
-                    to_name: email.split('@')[0]
+                    to_name: toEmail.split('@')[0],
+                    message: message
                 }
             );
             if(result.status === 200) {
-                showNotification(`✅ Код отправлен на ${email}`);
+                showNotification(`✅ Код отправлен на ${toEmail}`);
                 return true;
             }
         } catch(e) {
             console.error(e);
-            showNotification(`❌ Ошибка: ${e.text || 'Проверьте email'}`, true);
+            showNotification(`❌ Ошибка отправки: ${e.text || 'Проверьте email'}`, true);
             return false;
         }
         return false;
@@ -568,6 +644,9 @@
                     <div id="loginForm">
                         <input type="email" id="loginEmail" placeholder="Email">
                         <input type="password" id="loginPassword" placeholder="Пароль">
+                        <div class="forgot-link">
+                            <a id="forgotPasswordLink">Забыли пароль?</a>
+                        </div>
                         <button id="doLoginBtn">Войти</button>
                         <p style="text-align:center;margin:10px 0">— или —</p>
                         <button id="showRegisterBtn" style="background:transparent;color:var(--tg-accent);border:1px solid var(--tg-accent);">Регистрация</button>
@@ -581,13 +660,30 @@
                         <input type="email" id="regEmail" placeholder="Email">
                         <input type="password" id="regPassword" placeholder="Пароль">
                         <button id="doRegisterBtn">Зарегистрироваться</button>
-                        <button id="backToLoginBtn" style="background:transparent;color:var(--tg-text);">Назад</button>
+                        <div class="back-link">
+                            <a id="backToLoginFromReg">← Назад к входу</a>
+                        </div>
+                    </div>
+                    <div id="forgotForm" style="display:none;">
+                        <input type="email" id="forgotEmail" placeholder="Ваш Email">
+                        <button id="sendResetCodeBtn">Отправить код сброса</button>
+                        <div id="resetCodeSection" style="display:none;">
+                            <input type="text" id="resetCode" placeholder="Код из письма">
+                            <input type="password" id="newPassword" placeholder="Новый пароль">
+                            <input type="password" id="confirmPassword" placeholder="Подтвердите пароль">
+                            <button id="resetPasswordBtn">Сбросить пароль</button>
+                        </div>
+                        <div class="back-link">
+                            <a id="backToLoginFromForgot">← Назад к входу</a>
+                        </div>
                     </div>
                     <div class="error-msg" id="authError"></div>
+                    <div class="success-msg" id="authSuccess"></div>
                 </div>
             </div>
         `;
 
+        // Вход
         document.getElementById('doLoginBtn').onclick = async () => {
             const email = document.getElementById('loginEmail').value.trim();
             const password = document.getElementById('loginPassword').value;
@@ -605,14 +701,102 @@
             }
         };
 
+        // Забыли пароль
+        document.getElementById('forgotPasswordLink').onclick = () => {
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('registerForm').style.display = 'none';
+            document.getElementById('forgotForm').style.display = 'block';
+            document.getElementById('authError').innerText = '';
+            document.getElementById('authSuccess').innerText = '';
+        };
+
+        document.getElementById('backToLoginFromForgot').onclick = () => {
+            document.getElementById('forgotForm').style.display = 'none';
+            document.getElementById('loginForm').style.display = 'block';
+            document.getElementById('resetCodeSection').style.display = 'none';
+            document.getElementById('authError').innerText = '';
+        };
+
+        document.getElementById('backToLoginFromReg').onclick = () => {
+            document.getElementById('registerForm').style.display = 'none';
+            document.getElementById('loginForm').style.display = 'block';
+        };
+
+        // Отправка кода для сброса пароля
+        document.getElementById('sendResetCodeBtn').onclick = async () => {
+            const email = document.getElementById('forgotEmail').value.trim();
+            if(!email) {
+                document.getElementById('authError').innerText = 'Введите email';
+                return;
+            }
+            const user = await getUserByEmail(email);
+            if(!user) {
+                document.getElementById('authError').innerText = 'Пользователь с таким email не найден';
+                return;
+            }
+            
+            const code = Math.floor(100000 + Math.random() * 900000).toString();
+            const expires = Date.now() + 10 * 60 * 1000; // 10 минут
+            
+            await saveResetCode(email, code, expires);
+            const sent = await sendEmail(email, code, 'reset');
+            
+            if(sent) {
+                document.getElementById('resetCodeSection').style.display = 'block';
+                document.getElementById('authError').innerText = '';
+                document.getElementById('authSuccess').innerText = 'Код отправлен на почту! Проверьте входящие.';
+                setTimeout(() => document.getElementById('authSuccess').innerText = '', 5000);
+            }
+        };
+
+        // Сброс пароля
+        document.getElementById('resetPasswordBtn').onclick = async () => {
+            const email = document.getElementById('forgotEmail').value.trim();
+            const code = document.getElementById('resetCode').value.trim();
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            
+            if(!code || !newPassword || !confirmPassword) {
+                document.getElementById('authError').innerText = 'Заполните все поля';
+                return;
+            }
+            if(newPassword !== confirmPassword) {
+                document.getElementById('authError').innerText = 'Пароли не совпадают';
+                return;
+            }
+            if(newPassword.length < 4) {
+                document.getElementById('authError').innerText = 'Пароль должен быть не менее 4 символов';
+                return;
+            }
+            
+            const resetData = await getResetCode(email);
+            if(!resetData || resetData.code !== code) {
+                document.getElementById('authError').innerText = 'Неверный код сброса';
+                return;
+            }
+            if(Date.now() > resetData.expires) {
+                document.getElementById('authError').innerText = 'Код истек. Запросите новый.';
+                await deleteResetCode(email);
+                return;
+            }
+            
+            await updateUserPassword(email, newPassword);
+            await deleteResetCode(email);
+            
+            document.getElementById('authSuccess').innerText = 'Пароль успешно изменен! Теперь войдите.';
+            setTimeout(() => {
+                document.getElementById('forgotForm').style.display = 'none';
+                document.getElementById('loginForm').style.display = 'block';
+                document.getElementById('resetCodeSection').style.display = 'none';
+                document.getElementById('authError').innerText = '';
+            }, 2000);
+        };
+
+        // Регистрация
         document.getElementById('showRegisterBtn').onclick = () => {
             document.getElementById('loginForm').style.display = 'none';
             document.getElementById('registerForm').style.display = 'block';
-        };
-
-        document.getElementById('backToLoginBtn').onclick = () => {
-            document.getElementById('loginForm').style.display = 'block';
-            document.getElementById('registerForm').style.display = 'none';
+            document.getElementById('forgotForm').style.display = 'none';
         };
 
         document.getElementById('doRegisterBtn').onclick = async () => {
@@ -642,7 +826,7 @@
             }
 
             const code = Math.floor(100000 + Math.random() * 900000).toString();
-            const sent = await sendVerificationCode(email, code);
+            const sent = await sendEmail(email, code, 'verification');
             if(!sent) {
                 errorDiv.innerText = 'Не удалось отправить код';
                 return;
@@ -683,7 +867,6 @@
     async function renderMessenger() {
         allChats = await getAllChats();
         
-        // Создать чат "Избранное"
         if(!allChats.find(c => c.type === 'saved' && c.userId === currentUser.id)) {
             const savedChat = {
                 id: `saved_${currentUser.id}`,
@@ -737,7 +920,6 @@
 
         document.getElementById('themeToggle').onclick = () => document.body.classList.toggle('dark');
 
-        // Поиск пользователей
         const searchInput = document.getElementById('searchUsers');
         const searchResults = document.getElementById('searchResults');
         
@@ -795,7 +977,7 @@
         };
 
         document.addEventListener('click', (e) => {
-            if(!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+            if(searchInput && !searchInput.contains(e.target) && !searchResults.contains(e.target)) {
                 searchResults.style.display = 'none';
             }
         });
@@ -886,7 +1068,6 @@
         const activeEl = document.querySelector(`.chat-item[data-chat-id="${chatId}"]`);
         if(activeEl) activeEl.classList.add('active');
         
-        // Добавляем обработчик отправки сообщений
         const sendBtn = document.getElementById('sendBtn');
         const messageInput = document.getElementById('messageInput');
         
@@ -903,8 +1084,8 @@
             }
         };
         
-        sendBtn.onclick = newSendHandler;
-        messageInput.onkeypress = (e) => {
+        if(sendBtn) sendBtn.onclick = newSendHandler;
+        if(messageInput) messageInput.onkeypress = (e) => {
             if(e.key === 'Enter') newSendHandler();
         };
     }
