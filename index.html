@@ -47,6 +47,117 @@
             height: 100vh;
         }
 
+        /* Модальное окно */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 3000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: var(--tg-bg);
+            border-radius: 20px;
+            padding: 24px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--tg-border);
+        }
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--tg-text);
+        }
+
+        /* Контекстное меню */
+        .context-menu {
+            position: fixed;
+            background: var(--tg-bg);
+            border: 1px solid var(--tg-border);
+            border-radius: 12px;
+            padding: 8px 0;
+            z-index: 4000;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            min-width: 200px;
+        }
+        .context-menu-item {
+            padding: 10px 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .context-menu-item:hover {
+            background: var(--tg-hover);
+        }
+        .context-menu-divider {
+            height: 1px;
+            background: var(--tg-border);
+            margin: 4px 0;
+        }
+
+        /* Боковое меню */
+        .drawer {
+            position: fixed;
+            top: 0;
+            left: -280px;
+            width: 280px;
+            height: 100%;
+            background: var(--tg-bg);
+            z-index: 3500;
+            transition: left 0.3s;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+        }
+        .drawer.open {
+            left: 0;
+        }
+        .drawer-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--tg-border);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .drawer-item {
+            padding: 12px 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .drawer-item:hover {
+            background: var(--tg-hover);
+        }
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 3400;
+        }
+        .overlay.show {
+            display: block;
+        }
+
         .auth-container {
             display: flex;
             justify-content: center;
@@ -124,10 +235,6 @@
             margin-top: 5px;
         }
 
-        .avatar-upload-btn:hover {
-            opacity: 0.9;
-        }
-
         .error-msg {
             color: #e53935;
             font-size: 12px;
@@ -147,19 +254,16 @@
             margin-top: -12px;
             margin-bottom: 16px;
         }
-
         .forgot-link a {
             color: var(--tg-accent);
             font-size: 12px;
             text-decoration: none;
             cursor: pointer;
         }
-
         .back-link {
             text-align: center;
             margin-top: 10px;
         }
-
         .back-link a {
             color: var(--tg-text-secondary);
             font-size: 12px;
@@ -202,6 +306,14 @@
             gap: 12px;
         }
 
+        .menu-btn {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: var(--tg-text);
+        }
+
         .profile-avatar {
             width: 48px;
             height: 48px;
@@ -212,22 +324,16 @@
         .profile-info {
             flex: 1;
         }
+        .profile-name { font-weight: bold; }
+        .profile-username { font-size: 12px; color: var(--tg-text-secondary); }
 
-        .profile-name {
-            font-weight: bold;
-        }
-
-        .profile-username {
-            font-size: 12px;
-            color: var(--tg-text-secondary);
-        }
-
-        .logout-btn {
+        .logout-btn, .settings-btn {
             background: none;
             border: none;
             color: var(--tg-text);
             cursor: pointer;
             font-size: 20px;
+            margin-left: 8px;
         }
 
         .chats-list {
@@ -242,11 +348,9 @@
             gap: 12px;
             cursor: pointer;
             transition: background 0.2s;
+            position: relative;
         }
-
-        .chat-item:hover, .chat-item.active {
-            background: var(--tg-hover);
-        }
+        .chat-item:hover, .chat-item.active { background: var(--tg-hover); }
 
         .chat-avatar {
             width: 48px;
@@ -259,24 +363,25 @@
             color: white;
             font-weight: bold;
             font-size: 20px;
+            position: relative;
+        }
+        .online-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #4caf50;
+            position: absolute;
+            bottom: 2px;
+            right: 2px;
+            border: 2px solid var(--tg-sidebar);
         }
 
         .chat-details {
             flex: 1;
             overflow: hidden;
         }
-
-        .chat-name {
-            font-weight: 500;
-        }
-
-        .chat-last-msg {
-            font-size: 12px;
-            color: var(--tg-text-secondary);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
+        .chat-name { font-weight: 500; }
+        .chat-last-msg { font-size: 12px; color: var(--tg-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
         .chat-header {
             padding: 16px;
@@ -302,23 +407,11 @@
             border-radius: 18px;
             background: var(--tg-message-in);
             align-self: flex-start;
+            position: relative;
         }
-
-        .message.own {
-            align-self: flex-end;
-            background: var(--tg-message-out);
-        }
-
-        .message-text {
-            word-wrap: break-word;
-        }
-
-        .message-meta {
-            font-size: 10px;
-            color: var(--tg-text-secondary);
-            text-align: right;
-            margin-top: 4px;
-        }
+        .message.own { align-self: flex-end; background: var(--tg-message-out); }
+        .message-text { word-wrap: break-word; }
+        .message-meta { font-size: 10px; color: var(--tg-text-secondary); text-align: right; margin-top: 4px; }
 
         .input-area {
             padding: 12px;
@@ -327,7 +420,6 @@
             gap: 8px;
             background: var(--tg-bg);
         }
-
         .input-area input {
             flex: 1;
             padding: 10px;
@@ -336,7 +428,6 @@
             background: var(--tg-sidebar);
             color: var(--tg-text);
         }
-
         .input-area button {
             background: var(--tg-accent);
             border: none;
@@ -351,7 +442,6 @@
             border: none;
             font-size: 20px;
             cursor: pointer;
-            margin-left: 8px;
         }
 
         .notification {
@@ -365,20 +455,10 @@
             z-index: 2000;
             animation: slideIn 0.3s ease;
         }
-
-        .notification.error {
-            background: #e53935;
-        }
-
+        .notification.error { background: #e53935; }
         @keyframes slideIn {
-            from {
-                transform: translateX(100%);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
         }
 
         .search-results-dropdown {
@@ -392,7 +472,6 @@
             z-index: 100;
             margin-top: 4px;
         }
-
         .search-result-item {
             padding: 10px;
             cursor: pointer;
@@ -401,28 +480,68 @@
             gap: 10px;
             border-bottom: 1px solid var(--tg-border);
         }
+        .search-result-item:hover { background: var(--tg-hover); }
 
-        .search-result-item:hover {
-            background: var(--tg-hover);
-        }
+        .code-input-group { display: flex; gap: 10px; margin-bottom: 16px; }
+        .code-input-group input { flex: 1; text-align: center; font-size: 24px; letter-spacing: 5px; }
+        .email-highlight { font-weight: bold; color: var(--tg-accent); }
 
-        /* Стили для ввода кода */
-        .code-input-group {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 16px;
-        }
-        
-        .code-input-group input {
-            flex: 1;
+        .profile-view {
             text-align: center;
-            font-size: 24px;
-            letter-spacing: 5px;
         }
-        
-        .email-highlight {
+        .profile-view .big-avatar {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            margin: 0 auto 16px;
+        }
+        .profile-view .username {
+            font-size: 24px;
             font-weight: bold;
-            color: var(--tg-accent);
+        }
+        .profile-view .user-id {
+            font-size: 12px;
+            color: var(--tg-text-secondary);
+            margin-top: 4px;
+        }
+        .profile-view .about {
+            margin-top: 20px;
+            padding: 16px;
+            background: var(--tg-sidebar);
+            border-radius: 12px;
+            text-align: left;
+        }
+        .profile-view .info-row {
+            display: flex;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--tg-border);
+        }
+        .profile-view .info-label {
+            width: 100px;
+            color: var(--tg-text-secondary);
+        }
+        .profile-view .info-value {
+            flex: 1;
+        }
+
+        .session-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            border-bottom: 1px solid var(--tg-border);
+        }
+        .session-item.current {
+            background: var(--tg-sidebar);
+            border-radius: 12px;
+        }
+        .terminate-btn {
+            background: #e53935;
+            color: white;
+            border: none;
+            padding: 4px 12px;
+            border-radius: 8px;
+            cursor: pointer;
         }
 
         @media (max-width: 640px) {
@@ -434,6 +553,7 @@
                 transform: translateX(-100%);
                 transition: 0.2s;
             }
+            .sidebar.open { transform: translateX(0); }
         }
     </style>
 </head>
@@ -453,12 +573,14 @@
 
     // ---------- IndexedDB ----------
     const DB_NAME = 'BWMessengerDB';
-    const DB_VERSION = 8;
+    const DB_VERSION = 9;
     let db = null;
     let currentUser = null;
     let currentChat = null;
     let allChats = [];
     let pendingRegistrationData = null;
+    let contextMenuMessage = null;
+    let contextMenuType = null;
 
     function openDB() {
         return new Promise((resolve, reject) => {
@@ -486,6 +608,9 @@
                 if (!db_.objectStoreNames.contains('session')) {
                     db_.createObjectStore('session', { keyPath: 'id' });
                 }
+                if (!db_.objectStoreNames.contains('sessions_list')) {
+                    db_.createObjectStore('sessions_list', { keyPath: 'sessionId' });
+                }
                 if (!db_.objectStoreNames.contains('reset_codes')) {
                     db_.createObjectStore('reset_codes', { keyPath: 'email' });
                 }
@@ -512,11 +637,13 @@
         });
     }
 
-    async function updateUserPassword(email, newPassword) {
-        const user = await getUserByEmail(email);
+    async function updateUserAbout(userId, about) {
+        const users = await getUsers();
+        const user = users.find(u => u.id === userId);
         if(user) {
-            user.password = newPassword;
+            user.about = about;
             await saveUser(user);
+            if(currentUser && currentUser.id === userId) currentUser = user;
             return true;
         }
         return false;
@@ -535,7 +662,8 @@
         return new Promise((resolve) => {
             const tx = db.transaction('users', 'readonly');
             const index = tx.objectStore('users').index('username');
-            const req = index.get(username);
+            let cleanUsername = username.replace('@', '');
+            const req = index.get(cleanUsername);
             req.onsuccess = () => resolve(req.result);
         });
     }
@@ -569,7 +697,22 @@
         return new Promise((resolve) => { tx.oncomplete = resolve; });
     }
 
-    async function deleteMessage(msgId) {
+    async function updateMessage(msgId, newText) {
+        const tx = db.transaction('messages', 'readwrite');
+        const store = tx.objectStore('messages');
+        const getReq = store.get(msgId);
+        getReq.onsuccess = () => {
+            const msg = getReq.result;
+            if(msg) {
+                msg.text = newText;
+                msg.edited = true;
+                store.put(msg);
+            }
+        };
+        return new Promise((resolve) => { tx.oncomplete = resolve; });
+    }
+
+    async function deleteMessageFromDB(msgId) {
         const tx = db.transaction('messages', 'readwrite');
         tx.objectStore('messages').delete(msgId);
         return new Promise((resolve) => { tx.oncomplete = resolve; });
@@ -586,12 +729,41 @@
     async function setSession(userId) {
         const tx = db.transaction('session', 'readwrite');
         tx.objectStore('session').put({ id: 'current', userId: userId });
+        
+        // Добавляем сессию в список активных сессий
+        const sessionsTx = db.transaction('sessions_list', 'readwrite');
+        const sessionId = `session_${Date.now()}_${Math.random()}`;
+        sessionsTx.objectStore('sessions_list').put({
+            sessionId: sessionId,
+            userId: userId,
+            device: navigator.userAgent.split(' ').slice(-2).join(' '),
+            location: 'Unknown',
+            lastActive: Date.now(),
+            isCurrent: true
+        });
         return new Promise((resolve) => { tx.oncomplete = resolve; });
     }
 
     async function clearSession() {
         const tx = db.transaction('session', 'readwrite');
         tx.objectStore('session').delete('current');
+        return new Promise((resolve) => { tx.oncomplete = resolve; });
+    }
+
+    async function getActiveSessions(userId) {
+        return new Promise((resolve) => {
+            const tx = db.transaction('sessions_list', 'readonly');
+            const all = tx.objectStore('sessions_list').getAll();
+            all.onsuccess = () => {
+                const sessions = all.result.filter(s => s.userId === userId);
+                resolve(sessions);
+            };
+        });
+    }
+
+    async function terminateSession(sessionId) {
+        const tx = db.transaction('sessions_list', 'readwrite');
+        tx.objectStore('sessions_list').delete(sessionId);
         return new Promise((resolve) => { tx.oncomplete = resolve; });
     }
 
@@ -653,22 +825,14 @@
 
     async function sendVerificationCode(email, code, type = 'verification') {
         try {
-            let messageText = '';
-            if (type === 'reset') {
-                messageText = `Вы запросили сброс пароля в BWMessenger. Ваш код для сброса пароля: ${code}. Если вы не запрашивали сброс, проигнорируйте это письмо. Код действителен 10 минут.`;
-            } else {
-                messageText = `Ваш код подтверждения для регистрации в BWMessenger: ${code}. Введите его для завершения регистрации.`;
-            }
+            let messageText = type === 'reset' 
+                ? `Вы запросили сброс пароля в BWMessenger. Ваш код для сброса пароля: ${code}. Код действителен 10 минут.`
+                : `Ваш код подтверждения для регистрации в BWMessenger: ${code}. Введите его для завершения регистрации.`;
             
             const result = await emailjs.send(
                 EMAILJS_CONFIG.SERVICE_ID,
                 EMAILJS_CONFIG.TEMPLATE_ID,
-                {
-                    to_email: email,
-                    verification_code: code,
-                    to_name: email.split('@')[0],
-                    message: messageText
-                }
+                { to_email: email, verification_code: code, to_name: email.split('@')[0], message: messageText }
             );
             if (result.status === 200) {
                 showNotification(`✅ Код отправлен на ${email}`);
@@ -684,6 +848,33 @@
 
     const app = document.getElementById('app');
 
+    // Обработка URL для прямого открытия чата
+    async function handleUrlUsername() {
+        const path = window.location.pathname;
+        const match = path.match(/\/@(.+)/);
+        if(match && currentUser) {
+            const username = match[1];
+            const user = await getUserByUsername(username);
+            if(user && user.id !== currentUser.id) {
+                let chat = allChats.find(c => c.type === 'private' && 
+                    c.participants && c.participants.includes(currentUser.id) && c.participants.includes(user.id));
+                if(!chat) {
+                    chat = {
+                        id: `private_${Date.now()}`,
+                        type: 'private',
+                        participants: [currentUser.id, user.id],
+                        name: `${user.name} ${user.lastname || ''}`,
+                        createdAt: Date.now()
+                    };
+                    await saveChat(chat);
+                    allChats.push(chat);
+                }
+                await openChat(chat.id);
+                window.history.pushState({}, '', '/');
+            }
+        }
+    }
+
     async function init() {
         await openDB();
         const sessionId = await getSession();
@@ -691,7 +882,8 @@
             const users = await getUsers();
             currentUser = users.find(u => u.id === sessionId);
             if(currentUser) {
-                renderMessenger();
+                await renderMessenger();
+                await handleUrlUsername();
                 return;
             }
         }
@@ -706,9 +898,7 @@
                     <div id="loginForm">
                         <input type="email" id="loginEmail" placeholder="Email">
                         <input type="password" id="loginPassword" placeholder="Пароль">
-                        <div class="forgot-link">
-                            <a id="forgotPasswordLink">Забыли пароль?</a>
-                        </div>
+                        <div class="forgot-link"><a id="forgotPasswordLink">Забыли пароль?</a></div>
                         <button id="doLoginBtn">Войти</button>
                         <p style="text-align:center;margin:10px 0">— или —</p>
                         <button id="showRegisterBtn" style="background:transparent;color:var(--tg-accent);border:1px solid var(--tg-accent);">Регистрация</button>
@@ -716,10 +906,7 @@
                     <div id="registerForm" style="display:none;">
                         <div class="avatar-upload-container">
                             <img id="avatarPreview" class="avatar-preview" src="https://via.placeholder.com/100?text=Avatar">
-                            <label class="avatar-upload-btn">
-                                <i class="fas fa-camera"></i> Выбрать фото
-                                <input type="file" id="avatarFile" accept="image/*" style="display:none;">
-                            </label>
+                            <label class="avatar-upload-btn"><i class="fas fa-camera"></i> Выбрать фото<input type="file" id="avatarFile" accept="image/*" style="display:none;"></label>
                         </div>
                         <input type="text" id="regName" placeholder="Имя">
                         <input type="text" id="regLastname" placeholder="Фамилия (необязательно)">
@@ -727,34 +914,26 @@
                         <input type="email" id="regEmail" placeholder="Email">
                         <input type="password" id="regPassword" placeholder="Пароль">
                         <button id="doRegisterBtn">Зарегистрироваться</button>
-                        <div class="back-link">
-                            <a id="backToLoginFromReg">← Назад к входу</a>
-                        </div>
+                        <div class="back-link"><a id="backToLoginFromReg">← Назад к входу</a></div>
                     </div>
                     <div id="codeVerificationForm" style="display:none;">
                         <p style="margin-bottom:16px;">Проверьте почту</p>
-                        <p style="margin-bottom:16px;">Введите код, который пришёл на электронную почту <span id="verificationEmail" class="email-highlight"></span>.</p>
-                        <div class="code-input-group">
-                            <input type="text" id="verificationCode" placeholder="000000" maxlength="6">
-                        </div>
+                        <p style="margin-bottom:16px;">Введите код на <span id="verificationEmail" class="email-highlight"></span></p>
+                        <div class="code-input-group"><input type="text" id="verificationCode" placeholder="000000" maxlength="6"></div>
                         <button id="verifyCodeBtn">Подтвердить код</button>
-                        <div class="back-link">
-                            <a id="backToRegisterFromCode">← Назад</a>
-                        </div>
+                        <div class="back-link"><a id="backToRegisterFromCode">← Назад</a></div>
                     </div>
                     <div id="forgotForm" style="display:none;">
-                        <p style="margin-bottom:16px;">Введите email, и мы отправим код для сброса пароля</p>
+                        <p style="margin-bottom:16px;">Введите email для сброса пароля</p>
                         <input type="email" id="forgotEmail" placeholder="Ваш Email">
-                        <button id="sendResetCodeBtn">Отправить код сброса</button>
+                        <button id="sendResetCodeBtn">Отправить код</button>
                         <div id="resetCodeSection" style="display:none;">
                             <input type="text" id="resetCode" placeholder="Код из письма">
                             <input type="password" id="newPassword" placeholder="Новый пароль">
                             <input type="password" id="confirmPassword" placeholder="Подтвердите пароль">
                             <button id="resetPasswordBtn">Сбросить пароль</button>
                         </div>
-                        <div class="back-link">
-                            <a id="backToLoginFromForgot">← Назад к входу</a>
-                        </div>
+                        <div class="back-link"><a id="backToLoginFromForgot">← Назад</a></div>
                     </div>
                     <div class="error-msg" id="authError"></div>
                     <div class="success-msg" id="authSuccess"></div>
@@ -762,169 +941,101 @@
             </div>
         `;
 
-        // Предпросмотр аватарки
         const avatarPreview = document.getElementById('avatarPreview');
         const avatarFile = document.getElementById('avatarFile');
-        
-        const uploadBtn = document.querySelector('.avatar-upload-btn');
-        if(uploadBtn) {
-            uploadBtn.onclick = () => avatarFile.click();
-        }
-        
+        document.querySelector('.avatar-upload-btn')?.onclick = () => avatarFile.click();
         avatarFile.onchange = (e) => {
             const file = e.target.files[0];
             if(file) {
                 const reader = new FileReader();
-                reader.onload = (ev) => {
-                    avatarPreview.src = ev.target.result;
-                };
+                reader.onload = (ev) => avatarPreview.src = ev.target.result;
                 reader.readAsDataURL(file);
             }
         };
 
-        // Вход
         document.getElementById('doLoginBtn').onclick = async () => {
             const email = document.getElementById('loginEmail').value.trim();
             const password = document.getElementById('loginPassword').value;
             const errorDiv = document.getElementById('authError');
-            
             errorDiv.innerText = '';
-            
-            if(!email || !password) {
-                errorDiv.innerText = 'Заполните все поля';
-                return;
-            }
+            if(!email || !password) { errorDiv.innerText = 'Заполните все поля'; return; }
             const user = await getUserByEmail(email);
             if(user && user.password === password) {
                 currentUser = user;
                 await setSession(currentUser.id);
                 renderMessenger();
-            } else {
-                errorDiv.innerText = 'Неверный email или пароль';
-            }
+            } else { errorDiv.innerText = 'Неверный email или пароль'; }
         };
 
-        // Забыли пароль
         document.getElementById('forgotPasswordLink').onclick = () => {
             document.getElementById('loginForm').style.display = 'none';
             document.getElementById('registerForm').style.display = 'none';
             document.getElementById('codeVerificationForm').style.display = 'none';
             document.getElementById('forgotForm').style.display = 'block';
             document.getElementById('authError').innerText = '';
-            document.getElementById('authSuccess').innerText = '';
-            document.getElementById('resetCodeSection').style.display = 'none';
         };
-
         document.getElementById('backToLoginFromForgot').onclick = () => {
             document.getElementById('forgotForm').style.display = 'none';
             document.getElementById('loginForm').style.display = 'block';
             document.getElementById('resetCodeSection').style.display = 'none';
-            document.getElementById('authError').innerText = '';
         };
-
         document.getElementById('backToLoginFromReg').onclick = () => {
             document.getElementById('registerForm').style.display = 'none';
             document.getElementById('codeVerificationForm').style.display = 'none';
             document.getElementById('loginForm').style.display = 'block';
-            document.getElementById('authError').innerText = '';
         };
-        
         document.getElementById('backToRegisterFromCode').onclick = () => {
             document.getElementById('codeVerificationForm').style.display = 'none';
             document.getElementById('registerForm').style.display = 'block';
-            document.getElementById('authError').innerText = '';
             pendingRegistrationData = null;
         };
+        document.getElementById('showRegisterBtn').onclick = () => {
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('registerForm').style.display = 'block';
+            document.getElementById('codeVerificationForm').style.display = 'none';
+            document.getElementById('forgotForm').style.display = 'none';
+        };
 
-        // Отправка кода для сброса пароля
         document.getElementById('sendResetCodeBtn').onclick = async () => {
             const email = document.getElementById('forgotEmail').value.trim();
             const errorDiv = document.getElementById('authError');
             const successDiv = document.getElementById('authSuccess');
-            
-            errorDiv.innerText = '';
-            successDiv.innerText = '';
-            
-            if(!email) {
-                errorDiv.innerText = 'Введите email';
-                return;
-            }
+            errorDiv.innerText = ''; successDiv.innerText = '';
+            if(!email) { errorDiv.innerText = 'Введите email'; return; }
             const user = await getUserByEmail(email);
-            if(!user) {
-                errorDiv.innerText = 'Пользователь с таким email не найден';
-                return;
-            }
-            
+            if(!user) { errorDiv.innerText = 'Пользователь не найден'; return; }
             const code = Math.floor(100000 + Math.random() * 900000).toString();
-            const expires = Date.now() + 10 * 60 * 1000;
-            
-            await saveResetCode(email, code, expires);
+            await saveResetCode(email, code, Date.now() + 10 * 60 * 1000);
             const sent = await sendVerificationCode(email, code, 'reset');
-            
             if(sent) {
                 document.getElementById('resetCodeSection').style.display = 'block';
-                successDiv.innerText = 'Код отправлен на почту! Проверьте входящие.';
+                successDiv.innerText = 'Код отправлен!';
                 setTimeout(() => successDiv.innerText = '', 5000);
             }
         };
 
-        // Сброс пароля
         document.getElementById('resetPasswordBtn').onclick = async () => {
             const email = document.getElementById('forgotEmail').value.trim();
             const code = document.getElementById('resetCode').value.trim();
             const newPassword = document.getElementById('newPassword').value;
             const confirmPassword = document.getElementById('confirmPassword').value;
             const errorDiv = document.getElementById('authError');
-            const successDiv = document.getElementById('authSuccess');
-            
-            errorDiv.innerText = '';
-            successDiv.innerText = '';
-            
-            if(!code || !newPassword || !confirmPassword) {
-                errorDiv.innerText = 'Заполните все поля';
-                return;
-            }
-            if(newPassword !== confirmPassword) {
-                errorDiv.innerText = 'Пароли не совпадают';
-                return;
-            }
-            if(newPassword.length < 4) {
-                errorDiv.innerText = 'Пароль должен быть не менее 4 символов';
-                return;
-            }
-            
+            if(!code || !newPassword || !confirmPassword) { errorDiv.innerText = 'Заполните все поля'; return; }
+            if(newPassword !== confirmPassword) { errorDiv.innerText = 'Пароли не совпадают'; return; }
+            if(newPassword.length < 4) { errorDiv.innerText = 'Пароль не менее 4 символов'; return; }
             const resetData = await getResetCode(email);
-            if(!resetData || resetData.code !== code) {
-                errorDiv.innerText = 'Неверный код сброса';
-                return;
-            }
-            if(Date.now() > resetData.expires) {
-                errorDiv.innerText = 'Код истек. Запросите новый.';
+            if(!resetData || resetData.code !== code) { errorDiv.innerText = 'Неверный код'; return; }
+            if(Date.now() > resetData.expires) { errorDiv.innerText = 'Код истек'; await deleteResetCode(email); return; }
+            const user = await getUserByEmail(email);
+            if(user) {
+                user.password = newPassword;
+                await saveUser(user);
                 await deleteResetCode(email);
-                return;
-            }
-            
-            await updateUserPassword(email, newPassword);
-            await deleteResetCode(email);
-            
-            successDiv.innerText = 'Пароль успешно изменен! Теперь войдите.';
-            setTimeout(() => {
+                showNotification('Пароль изменен! Войдите.');
                 document.getElementById('forgotForm').style.display = 'none';
                 document.getElementById('loginForm').style.display = 'block';
                 document.getElementById('resetCodeSection').style.display = 'none';
-                errorDiv.innerText = '';
-                successDiv.innerText = '';
-            }, 2000);
-        };
-
-        // Регистрация
-        document.getElementById('showRegisterBtn').onclick = () => {
-            document.getElementById('loginForm').style.display = 'none';
-            document.getElementById('registerForm').style.display = 'block';
-            document.getElementById('codeVerificationForm').style.display = 'none';
-            document.getElementById('forgotForm').style.display = 'none';
-            document.getElementById('authError').innerText = '';
-            document.getElementById('authSuccess').innerText = '';
+            }
         };
 
         document.getElementById('doRegisterBtn').onclick = async () => {
@@ -935,84 +1046,39 @@
             const password = document.getElementById('regPassword').value;
             const avatarPreviewImg = document.getElementById('avatarPreview');
             const errorDiv = document.getElementById('authError');
-            
             errorDiv.innerText = '';
-
-            if(!name || !username || !email || !password) {
-                errorDiv.innerText = 'Заполните обязательные поля (Имя, Username, Email, Пароль)';
-                return;
-            }
-            if(!/^[a-zA-Z0-9_]+$/.test(username)) {
-                errorDiv.innerText = 'Username только буквы, цифры, _';
-                return;
-            }
-            if(await getUserByEmail(email)) {
-                errorDiv.innerText = 'Email уже используется';
-                return;
-            }
-            if(await getUserByUsername(username)) {
-                errorDiv.innerText = 'Username уже занят';
-                return;
-            }
-
+            if(!name || !username || !email || !password) { errorDiv.innerText = 'Заполните все поля'; return; }
+            if(!/^[a-zA-Z0-9_]+$/.test(username)) { errorDiv.innerText = 'Username только буквы, цифры, _'; return; }
+            if(await getUserByEmail(email)) { errorDiv.innerText = 'Email уже используется'; return; }
+            if(await getUserByUsername(username)) { errorDiv.innerText = 'Username уже занят'; return; }
             const code = Math.floor(100000 + Math.random() * 900000).toString();
-            
             let avatarBase64 = null;
-            if(avatarPreviewImg.src && !avatarPreviewImg.src.includes('placeholder')) {
-                avatarBase64 = avatarPreviewImg.src;
-            }
-
-            pendingRegistrationData = {
-                name, lastname, username, email, password, avatarBase64
-            };
-
+            if(avatarPreviewImg.src && !avatarPreviewImg.src.includes('placeholder')) avatarBase64 = avatarPreviewImg.src;
+            pendingRegistrationData = { name, lastname, username, email, password, avatarBase64 };
             const sent = await sendVerificationCode(email, code, 'verification');
-            if(!sent) {
-                errorDiv.innerText = 'Не удалось отправить код';
-                return;
-            }
-            
+            if(!sent) { errorDiv.innerText = 'Ошибка отправки'; return; }
             await saveTempCode(email, code, pendingRegistrationData);
-            
             document.getElementById('verificationEmail').innerText = email;
             document.getElementById('registerForm').style.display = 'none';
             document.getElementById('codeVerificationForm').style.display = 'block';
-            errorDiv.innerText = '';
         };
-        
+
         document.getElementById('verifyCodeBtn').onclick = async () => {
             const code = document.getElementById('verificationCode').value.trim();
             const email = document.getElementById('verificationEmail').innerText;
             const errorDiv = document.getElementById('authError');
-            
             const tempData = await getTempCode(email);
-            
-            if(!tempData || tempData.code !== code) {
-                errorDiv.innerText = 'Неверный код подтверждения';
-                return;
-            }
-            
-            if(Date.now() > tempData.expires) {
-                errorDiv.innerText = 'Код истек. Запросите новый.';
-                await deleteTempCode(email);
-                return;
-            }
-            
+            if(!tempData || tempData.code !== code) { errorDiv.innerText = 'Неверный код'; return; }
+            if(Date.now() > tempData.expires) { errorDiv.innerText = 'Код истек'; await deleteTempCode(email); return; }
             const data = tempData.data;
             const newUser = {
                 id: Date.now().toString(),
-                name: data.name,
-                lastname: data.lastname,
-                username: data.username,
-                email: data.email,
-                password: data.password,
-                avatar: data.avatarBase64,
-                createdAt: Date.now()
+                name: data.name, lastname: data.lastname, username: data.username,
+                email: data.email, password: data.password, avatar: data.avatarBase64,
+                createdAt: Date.now(), about: '', online: true
             };
-            
             await saveUser(newUser);
             await deleteTempCode(email);
-            
             currentUser = newUser;
             await setSession(currentUser.id);
             renderMessenger();
@@ -1021,44 +1087,47 @@
 
     async function renderMessenger() {
         allChats = await getAllChats();
-        
         if(!allChats.find(c => c.type === 'saved' && c.userId === currentUser.id)) {
-            const savedChat = {
-                id: `saved_${currentUser.id}`,
-                type: 'saved',
-                userId: currentUser.id,
-                name: 'Избранное',
-                createdAt: Date.now()
-            };
+            const savedChat = { id: `saved_${currentUser.id}`, type: 'saved', userId: currentUser.id, name: 'Избранное', createdAt: Date.now() };
             await saveChat(savedChat);
             allChats.push(savedChat);
         }
 
         app.innerHTML = `
+            <div class="overlay" id="drawerOverlay"></div>
+            <div class="drawer" id="drawer">
+                <div class="drawer-header">
+                    <img class="profile-avatar" src="${currentUser.avatar || 'https://via.placeholder.com/48'}">
+                    <div><div class="profile-name">${escapeHtml(currentUser.name)} ${escapeHtml(currentUser.lastname || '')}</div><div class="profile-username">@${escapeHtml(currentUser.username)}</div></div>
+                </div>
+                <div class="drawer-item" id="drawerProfile"><i class="fas fa-user"></i> Мой профиль</div>
+                <div class="drawer-item" id="drawerSettings"><i class="fas fa-cog"></i> Настройки</div>
+                <div class="drawer-item" id="drawerSessions"><i class="fas fa-laptop"></i> Активные сеансы</div>
+                <div class="drawer-item" id="drawerPrivacy"><i class="fas fa-lock"></i> Конфиденциальность</div>
+                <div class="drawer-item" id="drawerLogout"><i class="fas fa-sign-out-alt"></i> Выйти</div>
+            </div>
             <div class="messenger">
                 <div class="messenger-container">
                     <div class="sidebar">
                         <div class="profile-header">
+                            <button class="menu-btn" id="menuBtn"><i class="fas fa-bars"></i></button>
                             <img class="profile-avatar" src="${currentUser.avatar || 'https://via.placeholder.com/48'}">
                             <div class="profile-info">
                                 <div class="profile-name">${escapeHtml(currentUser.name)} ${escapeHtml(currentUser.lastname || '')}</div>
                                 <div class="profile-username">@${escapeHtml(currentUser.username)}</div>
                             </div>
                             <button class="theme-toggle" id="themeToggle"><i class="fas fa-moon"></i></button>
-                            <button class="logout-btn" id="logoutBtn"><i class="fas fa-sign-out-alt"></i></button>
                         </div>
                         <div style="padding:8px; position:relative;">
                             <input type="text" id="searchUsers" placeholder="🔍 Поиск пользователей..." style="width:100%;padding:8px;border-radius:20px;border:1px solid var(--tg-border);background:var(--tg-bg);color:var(--tg-text);">
                             <div id="searchResults" class="search-results-dropdown" style="display:none;"></div>
                         </div>
                         <div class="chats-list" id="chatsList"></div>
-                        <div style="padding:12px">
-                            <button id="newGroupBtn" style="width:100%;padding:8px;background:var(--tg-accent);color:white;border:none;border-radius:20px;"><i class="fas fa-plus"></i> Создать группу</button>
-                        </div>
+                        <div style="padding:12px"><button id="newGroupBtn" style="width:100%;padding:8px;background:var(--tg-accent);color:white;border:none;border-radius:20px;"><i class="fas fa-plus"></i> Создать группу</button></div>
                     </div>
                     <div class="chat-area">
                         <div class="chat-header" id="chatHeader">Выберите чат</div>
-                        <div class="messages-area" id="messagesArea"><div style="text-align:center;padding:20px;color:var(--tg-text-secondary);">Выберите чат слева</div></div>
+                        <div class="messages-area" id="messagesArea"><div style="text-align:center;padding:20px;">Выберите чат</div></div>
                         <div class="input-area" id="inputArea" style="display:none;">
                             <input type="text" id="messageInput" placeholder="Сообщение">
                             <button id="sendBtn"><i class="fas fa-paper-plane"></i></button>
@@ -1068,55 +1137,50 @@
             </div>
         `;
 
-        document.getElementById('logoutBtn').onclick = async () => {
-            await clearSession();
-            location.reload();
-        };
+        // Меню
+        const drawer = document.getElementById('drawer');
+        const overlay = document.getElementById('drawerOverlay');
+        document.getElementById('menuBtn').onclick = () => { drawer.classList.add('open'); overlay.classList.add('show'); };
+        overlay.onclick = () => { drawer.classList.remove('open'); overlay.classList.remove('show'); };
+
+        document.getElementById('drawerProfile').onclick = () => { showProfileModal(currentUser); drawer.classList.remove('open'); overlay.classList.remove('show'); };
+        document.getElementById('drawerSettings').onclick = () => { showSettingsModal(); drawer.classList.remove('open'); overlay.classList.remove('show'); };
+        document.getElementById('drawerSessions').onclick = () => { showSessionsModal(); drawer.classList.remove('open'); overlay.classList.remove('show'); };
+        document.getElementById('drawerPrivacy').onclick = () => { showNotification('В разработке'); drawer.classList.remove('open'); overlay.classList.remove('show'); };
+        document.getElementById('drawerLogout').onclick = async () => { await clearSession(); location.reload(); };
 
         document.getElementById('themeToggle').onclick = () => document.body.classList.toggle('dark');
+        document.getElementById('newGroupBtn').onclick = async () => {
+            const groupName = prompt('Название группы');
+            if(!groupName) return;
+            const newChat = { id: `group_${Date.now()}`, type: 'group', name: groupName, participants: [currentUser.id], createdAt: Date.now() };
+            await saveChat(newChat);
+            allChats.push(newChat);
+            await renderChatsList();
+        };
 
         const searchInput = document.getElementById('searchUsers');
         const searchResults = document.getElementById('searchResults');
-        
         searchInput.oninput = async (e) => {
             const query = e.target.value.toLowerCase().trim();
-            if(query.length < 2) {
-                searchResults.style.display = 'none';
-                return;
-            }
+            if(query.length < 2) { searchResults.style.display = 'none'; return; }
             const users = await getUsers();
             const filtered = users.filter(u => u.id !== currentUser.id && 
-                (u.username.toLowerCase().includes(query) || 
-                 u.name.toLowerCase().includes(query) || 
-                 (u.lastname && u.lastname.toLowerCase().includes(query))));
-            
+                (u.username.toLowerCase().includes(query) || u.name.toLowerCase().includes(query) || (u.lastname && u.lastname.toLowerCase().includes(query))));
             if(filtered.length > 0) {
-                searchResults.innerHTML = filtered.map(u => `
-                    <div class="search-result-item" data-user-id="${u.id}">
-                        <img src="${u.avatar || 'https://via.placeholder.com/32'}" style="width:32px;height:32px;border-radius:50%;">
-                        <div>
-                            <strong>${escapeHtml(u.name)} ${escapeHtml(u.lastname || '')}</strong><br>
-                            <small>@${escapeHtml(u.username)}</small>
-                        </div>
-                    </div>
-                `).join('');
+                searchResults.innerHTML = filtered.map(u => `<div class="search-result-item" data-username="${u.username}">
+                    <img src="${u.avatar || 'https://via.placeholder.com/32'}" style="width:32px;height:32px;border-radius:50%;">
+                    <div><strong>${escapeHtml(u.name)} ${escapeHtml(u.lastname || '')}</strong><br><small>@${escapeHtml(u.username)}</small></div>
+                </div>`).join('');
                 searchResults.style.display = 'block';
-                
                 document.querySelectorAll('.search-result-item').forEach(el => {
                     el.onclick = async () => {
-                        const userId = el.dataset.userId;
-                        const targetUser = (await getUsers()).find(u => u.id === userId);
+                        const username = el.dataset.username;
+                        const targetUser = await getUserByUsername(username);
                         if(targetUser) {
-                            let chat = allChats.find(c => c.type === 'private' && 
-                                c.participants && c.participants.includes(currentUser.id) && c.participants.includes(targetUser.id));
+                            let chat = allChats.find(c => c.type === 'private' && c.participants?.includes(currentUser.id) && c.participants?.includes(targetUser.id));
                             if(!chat) {
-                                chat = {
-                                    id: `private_${Date.now()}`,
-                                    type: 'private',
-                                    participants: [currentUser.id, targetUser.id],
-                                    name: `${targetUser.name} ${targetUser.lastname || ''}`,
-                                    createdAt: Date.now()
-                                };
+                                chat = { id: `private_${Date.now()}`, type: 'private', participants: [currentUser.id, targetUser.id], name: `${targetUser.name} ${targetUser.lastname || ''}`, createdAt: Date.now() };
                                 await saveChat(chat);
                                 allChats.push(chat);
                             }
@@ -1127,32 +1191,160 @@
                     };
                 });
             } else {
-                searchResults.style.display = 'none';
+                searchResults.innerHTML = `<div class="search-result-item" style="color:var(--tg-text-secondary);">Пользователь "${query}" не найден</div>`;
+                searchResults.style.display = 'block';
             }
         };
-
         document.addEventListener('click', (e) => {
-            if(searchInput && !searchInput.contains(e.target) && !searchResults.contains(e.target)) {
-                searchResults.style.display = 'none';
-            }
+            if(searchInput && !searchInput.contains(e.target) && !searchResults.contains(e.target)) searchResults.style.display = 'none';
         });
 
-        document.getElementById('newGroupBtn').onclick = async () => {
-            const groupName = prompt('Название группы');
-            if(!groupName) return;
-            const newChat = {
-                id: `group_${Date.now()}`,
-                type: 'group',
-                name: groupName,
-                participants: [currentUser.id],
-                createdAt: Date.now()
+        // Обработка команды /my_id
+        const messageInput = document.getElementById('messageInput');
+        const sendBtn = document.getElementById('sendBtn');
+        if(messageInput) {
+            messageInput.addEventListener('keypress', async (e) => {
+                if(e.key === 'Enter' && messageInput.value.trim()) {
+                    if(messageInput.value.trim() === '/my_id') {
+                        showNotification(`Ваш ID: ${currentUser.id}`);
+                        messageInput.value = '';
+                        return;
+                    }
+                    if(currentChat) {
+                        await saveMessage({ chatId: currentChat.id, senderId: currentUser.id, text: messageInput.value, timestamp: Date.now() });
+                        messageInput.value = '';
+                        await loadMessages();
+                    }
+                }
+            });
+        }
+        if(sendBtn) {
+            sendBtn.onclick = async () => {
+                if(messageInput.value.trim() && currentChat) {
+                    if(messageInput.value.trim() === '/my_id') {
+                        showNotification(`Ваш ID: ${currentUser.id}`);
+                        messageInput.value = '';
+                        return;
+                    }
+                    await saveMessage({ chatId: currentChat.id, senderId: currentUser.id, text: messageInput.value, timestamp: Date.now() });
+                    messageInput.value = '';
+                    await loadMessages();
+                }
             };
-            await saveChat(newChat);
-            allChats.push(newChat);
-            await renderChatsList();
-        };
+        }
 
         await renderChatsList();
+    }
+
+    async function showProfileModal(user) {
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <div class="modal-header"><h3>Профиль</h3><button class="close-modal">&times;</button></div>
+                <div class="profile-view">
+                    <img src="${user.avatar || 'https://via.placeholder.com/100'}" class="big-avatar">
+                    <div class="username">${escapeHtml(user.name)} ${escapeHtml(user.lastname || '')}</div>
+                    <div class="user-id">@${escapeHtml(user.username)}</div>
+                    <div class="user-id">ID: ${user.id}</div>
+                    <div class="about">
+                        <div class="info-row"><div class="info-label">О себе:</div><div class="info-value"><textarea id="aboutText" rows="3" style="width:100%;padding:8px;border-radius:12px;border:1px solid var(--tg-border);background:var(--tg-bg);color:var(--tg-text);">${escapeHtml(user.about || '')}</textarea></div></div>
+                        <div class="info-row"><div class="info-label">Email:</div><div class="info-value">${escapeHtml(user.email)}</div></div>
+                        <div class="info-row"><div class="info-label">Имя пользователя:</div><div class="info-value">@${escapeHtml(user.username)}</div></div>
+                    </div>
+                    <button id="saveAboutBtn" style="margin-top:16px;padding:10px;background:var(--tg-accent);color:white;border:none;border-radius:12px;width:100%;">Сохранить</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        modal.style.display = 'flex';
+        modal.querySelector('.close-modal').onclick = () => modal.remove();
+        modal.querySelector('#saveAboutBtn').onclick = async () => {
+            const about = modal.querySelector('#aboutText').value;
+            await updateUserAbout(user.id, about);
+            showNotification('Профиль обновлен');
+            modal.remove();
+            renderMessenger();
+        };
+    }
+
+    async function showSettingsModal() {
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <div class="modal-header"><h3>Настройки</h3><button class="close-modal">&times;</button></div>
+                <div class="info-row"><div class="info-label">Имя:</div><div class="info-value"><input type="text" id="settingsName" value="${escapeHtml(currentUser.name)}" style="width:100%;padding:8px;border-radius:12px;border:1px solid var(--tg-border);"></div></div>
+                <div class="info-row"><div class="info-label">Фамилия:</div><div class="info-value"><input type="text" id="settingsLastname" value="${escapeHtml(currentUser.lastname || '')}" style="width:100%;padding:8px;border-radius:12px;border:1px solid var(--tg-border);"></div></div>
+                <div class="info-row"><div class="info-label">Username:</div><div class="info-value"><input type="text" id="settingsUsername" value="${escapeHtml(currentUser.username)}" style="width:100%;padding:8px;border-radius:12px;border:1px solid var(--tg-border);"></div></div>
+                <div class="info-row"><div class="info-label">Email:</div><div class="info-value"><input type="email" id="settingsEmail" value="${escapeHtml(currentUser.email)}" style="width:100%;padding:8px;border-radius:12px;border:1px solid var(--tg-border);"></div></div>
+                <div class="info-row"><div class="info-label">Новый пароль:</div><div class="info-value"><input type="password" id="settingsPassword" placeholder="Оставьте пустым чтобы не менять" style="width:100%;padding:8px;border-radius:12px;border:1px solid var(--tg-border);"></div></div>
+                <button id="saveSettingsBtn" style="margin-top:16px;padding:10px;background:var(--tg-accent);color:white;border:none;border-radius:12px;width:100%;">Сохранить изменения</button>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        modal.style.display = 'flex';
+        modal.querySelector('.close-modal').onclick = () => modal.remove();
+        modal.querySelector('#saveSettingsBtn').onclick = async () => {
+            const newName = modal.querySelector('#settingsName').value.trim();
+            const newLastname = modal.querySelector('#settingsLastname').value.trim();
+            const newUsername = modal.querySelector('#settingsUsername').value.trim();
+            const newEmail = modal.querySelector('#settingsEmail').value.trim();
+            const newPassword = modal.querySelector('#settingsPassword').value;
+            if(!newName || !newUsername || !newEmail) { showNotification('Заполните обязательные поля'); return; }
+            if(!/^[a-zA-Z0-9_]+$/.test(newUsername)) { showNotification('Username только буквы, цифры, _'); return; }
+            const existingUser = await getUserByUsername(newUsername);
+            if(existingUser && existingUser.id !== currentUser.id) { showNotification('Username уже занят'); return; }
+            const existingEmail = await getUserByEmail(newEmail);
+            if(existingEmail && existingEmail.id !== currentUser.id) { showNotification('Email уже используется'); return; }
+            currentUser.name = newName;
+            currentUser.lastname = newLastname;
+            currentUser.username = newUsername;
+            currentUser.email = newEmail;
+            if(newPassword) currentUser.password = newPassword;
+            await saveUser(currentUser);
+            showNotification('Настройки сохранены');
+            modal.remove();
+            renderMessenger();
+        };
+    }
+
+    async function showSessionsModal() {
+        const sessions = await getActiveSessions(currentUser.id);
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <div class="modal-header"><h3>Активные сеансы</h3><button class="close-modal">&times;</button></div>
+                ${sessions.map(s => `
+                    <div class="session-item ${s.isCurrent ? 'current' : ''}">
+                        <div><strong>${escapeHtml(s.device)}</strong><br><small>${escapeHtml(s.location)} • ${new Date(s.lastActive).toLocaleString()}</small></div>
+                        ${!s.isCurrent ? `<button class="terminate-btn" data-session="${s.sessionId}">Завершить</button>` : '<span style="color:green;">Текущее устройство</span>'}
+                    </div>
+                `).join('')}
+                <button id="terminateAllBtn" style="margin-top:16px;padding:10px;background:#e53935;color:white;border:none;border-radius:12px;width:100%;">Завершить все другие сеансы</button>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        modal.style.display = 'flex';
+        modal.querySelector('.close-modal').onclick = () => modal.remove();
+        modal.querySelectorAll('.terminate-btn').forEach(btn => {
+            btn.onclick = async () => {
+                await terminateSession(btn.dataset.session);
+                showNotification('Сеанс завершен');
+                modal.remove();
+                showSessionsModal();
+            };
+        });
+        modal.querySelector('#terminateAllBtn').onclick = async () => {
+            const sessionsList = await getActiveSessions(currentUser.id);
+            for(const s of sessionsList) {
+                if(!s.isCurrent) await terminateSession(s.sessionId);
+            }
+            showNotification('Все другие сеансы завершены');
+            modal.remove();
+            showSessionsModal();
+        };
     }
 
     async function renderChatsList() {
@@ -1160,21 +1352,23 @@
         if(!container) return;
         const myId = currentUser.id;
         const users = await getUsers();
+        const userMap = new Map(users.map(u => [u.id, u]));
         let myChats = allChats.filter(c => {
             if(c.type === 'private') return c.participants?.includes(myId);
             if(c.type === 'saved') return c.userId === myId;
             if(c.type === 'group') return c.participants?.includes(myId);
             return false;
         });
-
         container.innerHTML = myChats.map(chat => {
             let displayName = chat.name;
             let avatar = '💬';
+            let isOnline = false;
             if(chat.type === 'private') {
                 const otherId = chat.participants.find(id => id !== myId);
-                const other = users.find(u => u.id === otherId);
+                const other = userMap.get(otherId);
                 displayName = other ? `${other.name} ${other.lastname || ''}` : 'Unknown';
                 avatar = displayName[0].toUpperCase();
+                isOnline = other?.online || false;
             } else if(chat.type === 'saved') {
                 displayName = '⭐ Избранное';
                 avatar = '⭐';
@@ -1182,14 +1376,13 @@
                 avatar = chat.name[0].toUpperCase();
             }
             return `<div class="chat-item" data-chat-id="${chat.id}">
-                        <div class="chat-avatar">${avatar}</div>
+                        <div class="chat-avatar">${avatar}${isOnline ? '<div class="online-indicator"></div>' : ''}</div>
                         <div class="chat-details">
                             <div class="chat-name">${escapeHtml(displayName)}</div>
                             <div class="chat-last-msg">Чат</div>
                         </div>
                     </div>`;
         }).join('');
-
         document.querySelectorAll('.chat-item').forEach(el => {
             el.onclick = () => openChat(el.dataset.chatId);
         });
@@ -1198,13 +1391,9 @@
     async function openChat(chatId) {
         currentChat = allChats.find(c => c.id === chatId);
         if(!currentChat) return;
-        
         document.getElementById('inputArea').style.display = 'flex';
-        document.getElementById('messagesArea').innerHTML = '<div style="text-align:center;padding:20px;">Загрузка...</div>';
-        
         const users = await getUsers();
         const myId = currentUser.id;
-        
         let headerText = '';
         if(currentChat.type === 'private') {
             const otherId = currentChat.participants.find(id => id !== myId);
@@ -1216,33 +1405,10 @@
             headerText = currentChat.name;
         }
         document.getElementById('chatHeader').innerHTML = `<strong>${escapeHtml(headerText)}</strong>`;
-        
         await loadMessages();
-        
         document.querySelectorAll('.chat-item').forEach(el => el.classList.remove('active'));
         const activeEl = document.querySelector(`.chat-item[data-chat-id="${chatId}"]`);
         if(activeEl) activeEl.classList.add('active');
-        
-        const sendBtn = document.getElementById('sendBtn');
-        const messageInput = document.getElementById('messageInput');
-        
-        const newSendHandler = async () => {
-            if(messageInput.value.trim() && currentChat) {
-                await saveMessage({
-                    chatId: currentChat.id,
-                    senderId: currentUser.id,
-                    text: messageInput.value,
-                    timestamp: Date.now()
-                });
-                messageInput.value = '';
-                await loadMessages();
-            }
-        };
-        
-        if(sendBtn) sendBtn.onclick = newSendHandler;
-        if(messageInput) messageInput.onkeypress = (e) => {
-            if(e.key === 'Enter') newSendHandler();
-        };
     }
 
     async function loadMessages() {
@@ -1250,48 +1416,107 @@
         const messages = await getMessages(currentChat.id);
         const users = await getUsers();
         const container = document.getElementById('messagesArea');
-        
         if(messages.length === 0) {
-            container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--tg-text-secondary);">Нет сообщений. Напишите что-нибудь!</div>';
+            container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--tg-text-secondary);">Нет сообщений</div>';
             return;
         }
-        
         container.innerHTML = messages.map(msg => {
             const isOwn = msg.senderId === currentUser.id;
             const sender = users.find(u => u.id === msg.senderId);
             const senderName = sender ? `${sender.name} ${sender.lastname || ''}` : 'Unknown';
-            const time = new Date(msg.timestamp).toLocaleTimeString();
-            return `<div class="message ${isOwn ? 'own' : ''}">
-                        <div class="message-text">${escapeHtml(msg.text)}</div>
-                        <div class="message-meta">
-                            ${!isOwn ? escapeHtml(senderName) + ' • ' : ''}${time}
-                            ${isOwn ? ` <i class="fas fa-trash" style="cursor:pointer;margin-left:8px;" data-msg-id="${msg.id}"></i>` : ''}
-                        </div>
+            const time = new Date(msg.timestamp).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+            return `<div class="message ${isOwn ? 'own' : ''}" data-msg-id="${msg.id}" data-msg-text="${escapeHtml(msg.text)}" data-msg-sender="${msg.senderId}">
+                        <div class="message-text">${escapeHtml(msg.text)}${msg.edited ? ' <i class="fas fa-pen" style="font-size:8px;"></i>' : ''}</div>
+                        <div class="message-meta">${!isOwn ? escapeHtml(senderName) + ' • ' : ''}${time}</div>
                     </div>`;
         }).join('');
-        
-        document.querySelectorAll('[data-msg-id]').forEach(el => {
-            el.onclick = async (e) => {
-                if(confirm('Удалить сообщение?')) {
-                    await deleteMessage(parseInt(el.dataset.msgId));
-                    await loadMessages();
-                }
-            };
+        container.querySelectorAll('.message').forEach(msgEl => {
+            msgEl.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                const msgId = parseInt(msgEl.dataset.msgId);
+                const msgText = msgEl.dataset.msgText;
+                const msgSender = msgEl.dataset.msgSender;
+                const isOwnMsg = msgSender === currentUser.id;
+                showContextMenu(e.clientX, e.clientY, msgId, msgText, isOwnMsg);
+            });
         });
-        
         container.scrollTop = container.scrollHeight;
     }
-    
-    function escapeHtml(str) {
-        if(!str) return '';
-        return str.replace(/[&<>]/g, function(m) {
-            if(m === '&') return '&amp;';
-            if(m === '<') return '&lt;';
-            if(m === '>') return '&gt;';
-            return m;
+
+    function showContextMenu(x, y, msgId, msgText, isOwn) {
+        const existingMenu = document.querySelector('.context-menu');
+        if(existingMenu) existingMenu.remove();
+        const menu = document.createElement('div');
+        menu.className = 'context-menu';
+        menu.style.left = x + 'px';
+        menu.style.top = y + 'px';
+        if(isOwn) {
+            menu.innerHTML = `
+                <div class="context-menu-item" data-action="edit"><i class="fas fa-pen"></i> Редактировать</div>
+                <div class="context-menu-item" data-action="copy"><i class="fas fa-copy"></i> Копировать текст</div>
+                <div class="context-menu-divider"></div>
+                <div class="context-menu-item" data-action="reply"><i class="fas fa-reply"></i> Ответить</div>
+                <div class="context-menu-item" data-action="forward"><i class="fas fa-share"></i> Переслать</div>
+                <div class="context-menu-divider"></div>
+                <div class="context-menu-item" data-action="delete"><i class="fas fa-trash"></i> Удалить</div>
+                <div class="context-menu-item" data-action="select"><i class="fas fa-check-circle"></i> Выделить</div>
+            `;
+        } else {
+            menu.innerHTML = `
+                <div class="context-menu-item" data-action="reply"><i class="fas fa-reply"></i> Ответить</div>
+                <div class="context-menu-item" data-action="copy"><i class="fas fa-copy"></i> Копировать текст</div>
+                <div class="context-menu-item" data-action="forward"><i class="fas fa-share"></i> Переслать</div>
+                <div class="context-menu-divider"></div>
+                <div class="context-menu-item" data-action="select"><i class="fas fa-check-circle"></i> Выделить</div>
+            `;
+        }
+        document.body.appendChild(menu);
+        menu.querySelectorAll('.context-menu-item').forEach(item => {
+            item.onclick = async () => {
+                const action = item.dataset.action;
+                if(action === 'edit') {
+                    const newText = prompt('Редактировать сообщение:', msgText);
+                    if(newText && newText !== msgText) {
+                        await updateMessage(msgId, newText);
+                        await loadMessages();
+                        showNotification('Сообщение отредактировано');
+                    }
+                } else if(action === 'copy') {
+                    await navigator.clipboard.writeText(msgText);
+                    showNotification('Текст скопирован');
+                } else if(action === 'reply') {
+                    showNotification('Ответ на сообщение (функция в разработке)');
+                } else if(action === 'forward') {
+                    const targetUsername = prompt('Введите username получателя:');
+                    if(targetUsername) {
+                        const targetUser = await getUserByUsername(targetUsername);
+                        if(targetUser) {
+                            let chat = allChats.find(c => c.type === 'private' && c.participants?.includes(currentUser.id) && c.participants?.includes(targetUser.id));
+                            if(!chat) {
+                                chat = { id: `private_${Date.now()}`, type: 'private', participants: [currentUser.id, targetUser.id], name: `${targetUser.name} ${targetUser.lastname || ''}`, createdAt: Date.now() };
+                                await saveChat(chat);
+                                allChats.push(chat);
+                            }
+                            await saveMessage({ chatId: chat.id, senderId: currentUser.id, text: msgText, timestamp: Date.now() });
+                            showNotification('Сообщение переслано');
+                        } else { showNotification('Пользователь не найден'); }
+                    }
+                } else if(action === 'delete') {
+                    if(confirm('Удалить сообщение?')) {
+                        await deleteMessageFromDB(msgId);
+                        await loadMessages();
+                        showNotification('Сообщение удалено');
+                    }
+                } else if(action === 'select') {
+                    showNotification('Выделение сообщений (в разработке)');
+                }
+                menu.remove();
+            };
         });
+        setTimeout(() => { if(menu) menu.remove(); }, 5000);
     }
 
+    function escapeHtml(str) { if(!str) return ''; return str.replace(/[&<>]/g, function(m) { if(m === '&') return '&amp;'; if(m === '<') return '&lt;'; if(m === '>') return '&gt;'; return m; }); }
     init();
 </script>
 </body>
