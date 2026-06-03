@@ -103,6 +103,7 @@
             margin: 10px auto;
             display: block;
             background: #ccc;
+            cursor: pointer;
         }
 
         .error-msg {
@@ -411,7 +412,7 @@
 
     // ---------- IndexedDB ----------
     const DB_NAME = 'BWMessengerDB';
-    const DB_VERSION = 6;
+    const DB_VERSION = 7;
     let db = null;
     let currentUser = null;
     let currentChat = null;
@@ -549,7 +550,6 @@
         return new Promise((resolve) => { tx.oncomplete = resolve; });
     }
 
-    // Сохранение кода сброса
     async function saveResetCode(email, code, expires) {
         const tx = db.transaction('reset_codes', 'readwrite');
         tx.objectStore('reset_codes').put({ email: email, code: code, expires: expires });
@@ -578,7 +578,6 @@
         setTimeout(() => div.remove(), 3000);
     }
 
-    // Очистка базы данных
     window.clearDatabase = async function() {
         if(confirm('Очистить всю базу данных? Все пользователи и сообщения будут удалены!')){
             indexedDB.deleteDatabase(DB_NAME);
@@ -587,34 +586,33 @@
         }
     };
 
-    async function sendEmail(toEmail, code, type = 'verification') {
+    // ========== ОТПРАВКА ПИСЕМ ==========
+    async function sendVerificationCode(email, code, type = 'verification') {
         try {
-            let subject, message;
-            if(type === 'reset') {
-                subject = 'Сброс пароля BWMessenger';
-                message = `Код для сброса пароля: ${code}. Если вы не запрашивали сброс пароля, проигнорируйте это письмо. Код действителен 10 минут.`;
+            let messageText = '';
+            if (type === 'reset') {
+                messageText = `Вы запросили сброс пароля в BWMessenger. Ваш код для сброса пароля: ${code}. Если вы не запрашивали сброс, проигнорируйте это письмо. Код действителен 10 минут.`;
             } else {
-                subject = 'Код подтверждения BWMessenger';
-                message = `Ваш код подтверждения: ${code}. Введите его для завершения регистрации.`;
+                messageText = `Ваш код подтверждения для регистрации в BWMessenger: ${code}. Введите его для завершения регистрации.`;
             }
             
             const result = await emailjs.send(
                 EMAILJS_CONFIG.SERVICE_ID,
                 EMAILJS_CONFIG.TEMPLATE_ID,
                 {
-                    to_email: toEmail,
+                    to_email: email,
                     verification_code: code,
-                    to_name: toEmail.split('@')[0],
-                    message: message
+                    to_name: email.split('@')[0],
+                    message: messageText
                 }
             );
-            if(result.status === 200) {
-                showNotification(`✅ Код отправлен на ${toEmail}`);
+            if (result.status === 200) {
+                showNotification(`✅ Код отправлен на ${email}`);
                 return true;
             }
         } catch(e) {
-            console.error(e);
-            showNotification(`❌ Ошибка отправки: ${e.text || 'Проверьте email'}`, true);
+            console.error('EmailJS Error:', e);
+            showNotification(`❌ Ошибка отправки: ${e.text || 'Проверьте настройки EmailJS'}`, true);
             return false;
         }
         return false;
@@ -652,8 +650,8 @@
                         <button id="showRegisterBtn" style="background:transparent;color:var(--tg-accent);border:1px solid var(--tg-accent);">Регистрация</button>
                     </div>
                     <div id="registerForm" style="display:none;">
-                        <img id="avatarPreview" class="avatar-preview" src="https://via.placeholder.com/80">
-                        <input type="file" id="avatarFile" accept="image/*">
+                        <img id="avatarPreview" class="avatar-preview" src="https://via.placeholder.com/80?text=Avatar">
+                        <input type="file" id="avatarFile" accept="image/*" style="display:none;">
                         <input type="text" id="regName" placeholder="Имя">
                         <input type="text" id="regLastname" placeholder="Фамилия">
                         <input type="text" id="regUsername" placeholder="Username (латиница)">
@@ -665,6 +663,7 @@
                         </div>
                     </div>
                     <div id="forgotForm" style="display:none;">
+                        <p style="margin-bottom:16px;">Введите email, и мы отправим код для сброса пароля</p>
                         <input type="email" id="forgotEmail" placeholder="Ваш Email">
                         <button id="sendResetCodeBtn">Отправить код сброса</button>
                         <div id="resetCodeSection" style="display:none;">
@@ -683,12 +682,35 @@
             </div>
         `;
 
+        // Предпросмотр аватарки
+        const avatarPreview = document.getElementById('avatarPreview');
+        const avatarFile = document.getElementById('avatarFile');
+        
+        avatarPreview.onclick = () => avatarFile.click();
+        
+        avatarFile.onchange = (e) => {
+            const file = e.target.files[0];
+            if(file) {
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    avatarPreview.src = ev.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        };
+
         // Вход
         document.getElementById('doLoginBtn').onclick = async () => {
             const email = document.getElementById('loginEmail').value.trim();
             const password = document.getElementById('loginPassword').value;
+            const errorDiv = document.getElementById('authError');
+            const successDiv = document.getElementById('authSuccess');
+            
+            errorDiv.innerText = '';
+            successDiv.innerText = '';
+            
             if(!email || !password) {
-                document.getElementById('authError').innerText = 'Заполните все поля';
+                errorDiv.innerText = 'Заполните все поля';
                 return;
             }
             const user = await getUserByEmail(email);
@@ -697,7 +719,7 @@
                 await setSession(currentUser.id);
                 renderMessenger();
             } else {
-                document.getElementById('authError').innerText = 'Неверный email или пароль';
+                errorDiv.innerText = 'Неверный email или пароль';
             }
         };
 
@@ -708,6 +730,7 @@
             document.getElementById('forgotForm').style.display = 'block';
             document.getElementById('authError').innerText = '';
             document.getElementById('authSuccess').innerText = '';
+            document.getElementById('resetCodeSection').style.display = 'none';
         };
 
         document.getElementById('backToLoginFromForgot').onclick = () => {
@@ -715,37 +738,45 @@
             document.getElementById('loginForm').style.display = 'block';
             document.getElementById('resetCodeSection').style.display = 'none';
             document.getElementById('authError').innerText = '';
+            document.getElementById('authSuccess').innerText = '';
         };
 
         document.getElementById('backToLoginFromReg').onclick = () => {
             document.getElementById('registerForm').style.display = 'none';
             document.getElementById('loginForm').style.display = 'block';
+            document.getElementById('authError').innerText = '';
+            document.getElementById('authSuccess').innerText = '';
         };
 
         // Отправка кода для сброса пароля
         document.getElementById('sendResetCodeBtn').onclick = async () => {
             const email = document.getElementById('forgotEmail').value.trim();
+            const errorDiv = document.getElementById('authError');
+            const successDiv = document.getElementById('authSuccess');
+            
+            errorDiv.innerText = '';
+            successDiv.innerText = '';
+            
             if(!email) {
-                document.getElementById('authError').innerText = 'Введите email';
+                errorDiv.innerText = 'Введите email';
                 return;
             }
             const user = await getUserByEmail(email);
             if(!user) {
-                document.getElementById('authError').innerText = 'Пользователь с таким email не найден';
+                errorDiv.innerText = 'Пользователь с таким email не найден';
                 return;
             }
             
             const code = Math.floor(100000 + Math.random() * 900000).toString();
-            const expires = Date.now() + 10 * 60 * 1000; // 10 минут
+            const expires = Date.now() + 10 * 60 * 1000;
             
             await saveResetCode(email, code, expires);
-            const sent = await sendEmail(email, code, 'reset');
+            const sent = await sendVerificationCode(email, code, 'reset');
             
             if(sent) {
                 document.getElementById('resetCodeSection').style.display = 'block';
-                document.getElementById('authError').innerText = '';
-                document.getElementById('authSuccess').innerText = 'Код отправлен на почту! Проверьте входящие.';
-                setTimeout(() => document.getElementById('authSuccess').innerText = '', 5000);
+                successDiv.innerText = 'Код отправлен на почту! Проверьте входящие.';
+                setTimeout(() => successDiv.innerText = '', 5000);
             }
         };
 
@@ -755,27 +786,32 @@
             const code = document.getElementById('resetCode').value.trim();
             const newPassword = document.getElementById('newPassword').value;
             const confirmPassword = document.getElementById('confirmPassword').value;
+            const errorDiv = document.getElementById('authError');
+            const successDiv = document.getElementById('authSuccess');
+            
+            errorDiv.innerText = '';
+            successDiv.innerText = '';
             
             if(!code || !newPassword || !confirmPassword) {
-                document.getElementById('authError').innerText = 'Заполните все поля';
+                errorDiv.innerText = 'Заполните все поля';
                 return;
             }
             if(newPassword !== confirmPassword) {
-                document.getElementById('authError').innerText = 'Пароли не совпадают';
+                errorDiv.innerText = 'Пароли не совпадают';
                 return;
             }
             if(newPassword.length < 4) {
-                document.getElementById('authError').innerText = 'Пароль должен быть не менее 4 символов';
+                errorDiv.innerText = 'Пароль должен быть не менее 4 символов';
                 return;
             }
             
             const resetData = await getResetCode(email);
             if(!resetData || resetData.code !== code) {
-                document.getElementById('authError').innerText = 'Неверный код сброса';
+                errorDiv.innerText = 'Неверный код сброса';
                 return;
             }
             if(Date.now() > resetData.expires) {
-                document.getElementById('authError').innerText = 'Код истек. Запросите новый.';
+                errorDiv.innerText = 'Код истек. Запросите новый.';
                 await deleteResetCode(email);
                 return;
             }
@@ -783,12 +819,13 @@
             await updateUserPassword(email, newPassword);
             await deleteResetCode(email);
             
-            document.getElementById('authSuccess').innerText = 'Пароль успешно изменен! Теперь войдите.';
+            successDiv.innerText = 'Пароль успешно изменен! Теперь войдите.';
             setTimeout(() => {
                 document.getElementById('forgotForm').style.display = 'none';
                 document.getElementById('loginForm').style.display = 'block';
                 document.getElementById('resetCodeSection').style.display = 'none';
-                document.getElementById('authError').innerText = '';
+                errorDiv.innerText = '';
+                successDiv.innerText = '';
             }, 2000);
         };
 
@@ -797,6 +834,8 @@
             document.getElementById('loginForm').style.display = 'none';
             document.getElementById('registerForm').style.display = 'block';
             document.getElementById('forgotForm').style.display = 'none';
+            document.getElementById('authError').innerText = '';
+            document.getElementById('authSuccess').innerText = '';
         };
 
         document.getElementById('doRegisterBtn').onclick = async () => {
@@ -805,8 +844,12 @@
             const username = document.getElementById('regUsername').value.trim();
             const email = document.getElementById('regEmail').value.trim();
             const password = document.getElementById('regPassword').value;
-            const avatarFile = document.getElementById('avatarFile').files[0];
+            const avatarPreviewImg = document.getElementById('avatarPreview');
             const errorDiv = document.getElementById('authError');
+            const successDiv = document.getElementById('authSuccess');
+            
+            errorDiv.innerText = '';
+            successDiv.innerText = '';
 
             if(!name || !lastname || !username || !email || !password) {
                 errorDiv.innerText = 'Заполните все поля';
@@ -826,7 +869,7 @@
             }
 
             const code = Math.floor(100000 + Math.random() * 900000).toString();
-            const sent = await sendEmail(email, code, 'verification');
+            const sent = await sendVerificationCode(email, code, 'verification');
             if(!sent) {
                 errorDiv.innerText = 'Не удалось отправить код';
                 return;
@@ -839,12 +882,8 @@
             }
 
             let avatarBase64 = null;
-            if(avatarFile) {
-                const reader = new FileReader();
-                avatarBase64 = await new Promise(resolve => {
-                    reader.onload = e => resolve(e.target.result);
-                    reader.readAsDataURL(avatarFile);
-                });
+            if(avatarPreviewImg.src && !avatarPreviewImg.src.includes('placeholder')) {
+                avatarBase64 = avatarPreviewImg.src;
             }
 
             const newUser = {
