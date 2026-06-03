@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>BWMessenger — полный аналог Telegram</title>
+    <title>BWMessenger — Полный аналог Telegram</title>
     <!-- Font Awesome 6 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <!-- EmailJS -->
@@ -71,9 +71,10 @@
         .auth-card h2 {
             margin-bottom: 24px;
             text-align: center;
+            color: var(--tg-accent);
         }
 
-        .auth-card input, .auth-card button, .auth-card select {
+        .auth-card input, .auth-card button {
             width: 100%;
             padding: 12px;
             margin-bottom: 16px;
@@ -108,14 +109,14 @@
         }
 
         .error-msg {
-            color: red;
+            color: #e53935;
             font-size: 12px;
             margin-top: -10px;
             margin-bottom: 10px;
         }
 
         .success-msg {
-            color: green;
+            color: #4caf50;
             font-size: 12px;
             margin-top: -10px;
             margin-bottom: 10px;
@@ -198,7 +199,6 @@
             gap: 12px;
             cursor: pointer;
             transition: background 0.2s;
-            position: relative;
         }
 
         .chat-item:hover, .chat-item.active {
@@ -255,20 +255,6 @@
             background: var(--tg-header);
         }
 
-        .call-buttons {
-            margin-left: auto;
-            display: flex;
-            gap: 12px;
-        }
-
-        .call-btn {
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-size: 20px;
-            color: var(--tg-accent);
-        }
-
         .messages-area {
             flex: 1;
             overflow-y: auto;
@@ -303,25 +289,15 @@
             margin-top: 4px;
         }
 
-        .reply-preview {
-            background: rgba(0,0,0,0.1);
-            padding: 4px 8px;
-            border-radius: 8px;
-            margin-bottom: 4px;
-            font-size: 12px;
-            border-left: 2px solid var(--tg-accent);
-        }
-
         .input-area {
             padding: 12px;
             border-top: 1px solid var(--tg-border);
             display: flex;
             gap: 8px;
             background: var(--tg-bg);
-            flex-wrap: wrap;
         }
 
-        .input-area input[type="text"] {
+        .input-area input {
             flex: 1;
             padding: 10px;
             border-radius: 24px;
@@ -397,6 +373,10 @@
             animation: slideIn 0.3s ease;
         }
 
+        .notification.error {
+            background: #e53935;
+        }
+
         @keyframes slideIn {
             from {
                 transform: translateX(100%);
@@ -406,27 +386,6 @@
                 transform: translateX(0);
                 opacity: 1;
             }
-        }
-
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
-            z-index: 3000;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .modal-content {
-            background: var(--tg-bg);
-            border-radius: 20px;
-            padding: 24px;
-            width: 90%;
-            max-width: 400px;
         }
 
         @media (max-width: 640px) {
@@ -448,12 +407,20 @@
 <div id="app"></div>
 
 <script>
-    // Инициализация EmailJS (замените на свои ключи после регистрации на emailjs.com)
-    emailjs.init("YOUR_PUBLIC_KEY"); // Временно, для демо используем alert
+    // ========== ВАШИ КЛЮЧИ EMAILJS ==========
+    const EMAILJS_CONFIG = {
+        PUBLIC_KEY: 'ozNh-mba3XbBgyuIw',
+        SERVICE_ID: 'service_dscyay8',
+        TEMPLATE_ID: 'template_ffxl93e'
+    };
+    // ========================================
+
+    // Инициализация EmailJS
+    emailjs.init(EMAILJS_CONFIG.PUBLIC_KEY);
 
     // ---------- IndexedDB ----------
     const DB_NAME = 'BWMessengerDB';
-    const DB_VERSION = 2;
+    const DB_VERSION = 3;
     let db = null;
     let currentUser = null;
     let currentChat = null;
@@ -597,36 +564,44 @@
         return Math.floor(10000000 + Math.random() * 90000000).toString();
     }
 
-    function showNotification(message) {
+    function showNotification(message, isError = false) {
         const notif = document.createElement('div');
-        notif.className = 'notification';
+        notif.className = `notification ${isError ? 'error' : ''}`;
         notif.textContent = message;
         document.body.appendChild(notif);
         setTimeout(() => notif.remove(), 3000);
     }
 
-    // Отправка реального email через EmailJS (демо-режим с alert)
+    // ========== ОТПРАВКА РЕАЛЬНОГО EMAIL ==========
     async function sendVerificationCode(email, code) {
-        // Для реальной работы: зарегистрируйтесь на emailjs.com и замените
-        // Это демо-версия с alert
-        alert(`📧 Письмо отправлено на ${email}\nКод подтверждения: ${code}\n\n(В реальной версии письмо придет на почту. Для теста используйте этот код)`);
-        return true;
-        
-        /* Реальная реализация EmailJS (раскомментируйте и добавьте свои ключи):
         try {
-            await emailjs.send("YOUR_SERVICE_ID", "YOUR_TEMPLATE_ID", {
+            const templateParams = {
                 to_email: email,
                 verification_code: code,
-            });
-            return true;
+                to_name: email.split('@')[0],
+                message: `Ваш код подтверждения для входа в BWMessenger: ${code}`
+            };
+            
+            const response = await emailjs.send(
+                EMAILJS_CONFIG.SERVICE_ID,
+                EMAILJS_CONFIG.TEMPLATE_ID,
+                templateParams
+            );
+            
+            if (response.status === 200) {
+                showNotification(`✅ Код подтверждения отправлен на ${email}`);
+                return true;
+            } else {
+                throw new Error('Ошибка отправки');
+            }
         } catch(error) {
-            console.error(error);
+            console.error('EmailJS Error:', error);
+            showNotification(`❌ Ошибка отправки: ${error.text || 'Проверьте настройки EmailJS'}`, true);
             return false;
         }
-        */
     }
 
-    // Создание чата "Избранное" (сообщения только для себя)
+    // Создание чата "Избранное"
     async function createSavedMessages() {
         let chats = await getAllChats();
         let savedChat = chats.find(c => c.type === 'saved');
@@ -659,14 +634,6 @@
         return newChat;
     }
 
-    // Имитация звонка
-    function makeCall(chat, isVideo = false) {
-        showNotification(`📞 ${isVideo ? 'Видеозвонок' : 'Звонок'} в чат ${chat.name || 'чат'}... (демо-режим)`);
-        setTimeout(() => {
-            showNotification(`Звонок завершен (демо-версия)`);
-        }, 3000);
-    }
-
     const app = document.getElementById('app');
 
     async function init() {
@@ -691,7 +658,7 @@
             <div class="auth-container">
                 <div class="auth-card">
                     <h2><i class="fas fa-paper-plane"></i> BWMessenger</h2>
-                    <p>Введите email для входа или регистрации</p>
+                    <p style="text-align:center; margin-bottom:20px;">Введите email для входа или регистрации</p>
                     <input type="email" id="emailInput" placeholder="Email" autocomplete="off">
                     <button id="sendCodeBtn"><i class="fas fa-envelope"></i> Отправить код</button>
                     <div id="codeSection" style="display:none;">
@@ -714,18 +681,25 @@
 
         sendBtn.onclick = async () => {
             const email = emailInp.value.trim();
-            if(!email.includes('@')) { errorDiv.innerText = 'Введите корректный email'; return; }
+            if(!email.includes('@')) { 
+                errorDiv.innerText = 'Введите корректный email'; 
+                return; 
+            }
             pendingEmail = email;
             generatedCode = Math.floor(100000 + Math.random() * 900000).toString();
             
             sendBtn.disabled = true;
+            sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Отправка...';
+            
             const sent = await sendVerificationCode(email, generatedCode);
+            
             sendBtn.disabled = false;
+            sendBtn.innerHTML = '<i class="fas fa-envelope"></i> Отправить код';
             
             if(sent) {
                 codeDiv.style.display = 'block';
-                errorDiv.innerText = '';
-                showNotification(`Код отправлен на ${email}`);
+                errorDiv.innerHTML = '<div class="success-msg">✓ Код отправлен на почту! Проверьте входящие</div>';
+                setTimeout(() => errorDiv.innerHTML = '', 5000);
             } else {
                 errorDiv.innerText = 'Ошибка отправки. Попробуйте еще раз.';
             }
@@ -797,8 +771,7 @@
                 lastName: lname,
                 username: username,
                 avatar: avatarBase64,
-                createdAt: Date.now(),
-                online: true
+                createdAt: Date.now()
             };
             await saveUser(newUser);
             currentUser = newUser;
@@ -821,11 +794,10 @@
                                 <div class="profile-username">@${currentUser.username}</div>
                             </div>
                             <button class="theme-toggle" id="themeToggle"><i class="fas fa-moon"></i></button>
-                            <button class="settings-btn" id="settingsBtn"><i class="fas fa-cog"></i></button>
                             <button class="logout-btn" id="logoutBtn"><i class="fas fa-sign-out-alt"></i></button>
                         </div>
                         <div class="global-search">
-                            <input type="text" id="globalSearch" placeholder="🔍 Глобальный поиск пользователей...">
+                            <input type="text" id="globalSearch" placeholder="🔍 Поиск пользователей по username...">
                             <div id="searchResults" class="search-results"></div>
                         </div>
                         <div class="chats-list" id="chatsList"></div>
@@ -840,7 +812,7 @@
                         <div class="messages-area" id="messagesArea"></div>
                         <div class="input-area" id="inputArea" style="display:none;">
                             <div id="replyIndicator" style="width:100%;display:none;padding:8px;background:var(--tg-sidebar);border-radius:8px;margin-bottom:8px;">
-                                <i class="fas fa-reply"></i> Ответ на сообщение <span id="replyText"></span>
+                                <i class="fas fa-reply"></i> Ответ: <span id="replyText"></span>
                                 <button id="cancelReply" style="float:right;background:none;border:none;">✖</button>
                             </div>
                             <input type="text" id="messageInput" placeholder="Сообщение">
@@ -853,7 +825,6 @@
             </div>
         `;
         
-        // Обработчики
         document.getElementById('logoutBtn').onclick = async () => {
             await clearSession();
             currentUser = null;
@@ -862,10 +833,6 @@
         
         document.getElementById('themeToggle').onclick = () => {
             document.body.classList.toggle('dark');
-        };
-        
-        document.getElementById('settingsBtn').onclick = () => {
-            showNotification('Настройки в разработке');
         };
         
         document.getElementById('newGroupBtn').onclick = () => createGroupDialog();
@@ -915,12 +882,12 @@
         };
         
         document.addEventListener('click', (e) => {
-            if(!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+            if(searchInput && !searchInput.contains(e.target) && !searchResults.contains(e.target)) {
                 searchResults.style.display = 'none';
             }
         });
         
-        // Прикрепление файлов
+        // Отправка файлов
         const fileInput = document.getElementById('fileInput');
         document.getElementById('attachBtn').onclick = () => fileInput.click();
         fileInput.onchange = async (e) => {
@@ -979,7 +946,6 @@
         if(currentChat) {
             await openChat(currentChat.id);
         } else {
-            // Открыть "Избранное" по умолчанию
             const saved = await createSavedMessages();
             if(saved) await openChat(saved.id);
         }
@@ -1000,7 +966,6 @@
         container.innerHTML = myChats.map(chat => {
             let chatName = chat.name;
             let avatarLetter = chat.name?.[0] || '💬';
-            let icon = '';
             
             if(chat.type === 'private') {
                 const otherId = chat.participants.find(id => id !== myId);
@@ -1013,13 +978,10 @@
             }
             
             return `<div class="chat-item" data-chat-id="${chat.id}">
-                        <div class="chat-avatar">
-                            ${avatarLetter}
-                            ${chat.type === 'private' ? '<div class="online-indicator"></div>' : ''}
-                        </div>
+                        <div class="chat-avatar">${avatarLetter}</div>
                         <div class="chat-details">
                             <div class="chat-name">${chatName}</div>
-                            <div class="chat-last-msg">${chat.lastMsg || 'Нет сообщений'}</div>
+                            <div class="chat-last-msg">Нет сообщений</div>
                         </div>
                     </div>`;
         }).join('');
@@ -1031,6 +993,8 @@
 
     async function openChat(chatId) {
         currentChat = allChats.find(c => c.id === chatId);
+        if(!currentChat) return;
+        
         document.getElementById('inputArea').style.display = 'flex';
         await refreshMessages();
         
@@ -1042,23 +1006,19 @@
             const users = await getUsers();
             const otherId = currentChat.participants.find(id=>id!==currentUser.id);
             const other = users.find(u=>u.id===otherId);
-            header.innerHTML = `
-                <img class="profile-avatar" src="${other?.avatar||'https://via.placeholder.com/48'}" style="width:40px;">
-                <div>
-                    <strong>${other?.firstName} ${other?.lastName}</strong><br>
-                    <small>@${other?.username}</small>
-                </div>
-                <div class="call-buttons">
-                    <button class="call-btn" id="audioCallBtn"><i class="fas fa-phone"></i></button>
-                    <button class="call-btn" id="videoCallBtn"><i class="fas fa-video"></i></button>
-                </div>
-            `;
-            document.getElementById('audioCallBtn')?.addEventListener('click', () => makeCall(currentChat, false));
-            document.getElementById('videoCallBtn')?.addEventListener('click', () => makeCall(currentChat, true));
+            if(other) {
+                header.innerHTML = `
+                    <img class="profile-avatar" src="${other.avatar || 'https://via.placeholder.com/48'}" style="width:40px;height:40px;">
+                    <div>
+                        <strong>${other.firstName} ${other.lastName}</strong><br>
+                        <small>@${other.username}</small>
+                    </div>
+                `;
+            }
         } else if(currentChat.type === 'saved') {
             header.innerHTML = `<div><strong>⭐️ Избранное</strong><br><small>Ваши сохраненные сообщения</small></div>`;
         } else {
-            header.innerHTML = `<div class="chat-avatar">${currentChat.name?.[0]}</div><div><strong>${currentChat.name}</strong><br><small>Групповой чат</small></div>`;
+            header.innerHTML = `<div><strong>${currentChat.name}</strong><br><small>Групповой чат</small></div>`;
         }
     }
 
@@ -1068,19 +1028,15 @@
         const users = await getUsers();
         const messagesArea = document.getElementById('messagesArea');
         
+        if(msgs.length === 0) {
+            messagesArea.innerHTML = '<div style="text-align:center;color:var(--tg-text-secondary);padding:20px;">Нет сообщений. Напишите что-нибудь!</div>';
+            return;
+        }
+        
         messagesArea.innerHTML = msgs.map(msg => {
             const isOwn = msg.senderId === currentUser.id;
             const sender = users.find(u=>u.id===msg.senderId);
             const senderName = sender ? sender.firstName : 'Unknown';
-            let replyHtml = '';
-            if(msg.replyTo) {
-                const repliedMsg = msgs.find(m => m.id === msg.replyTo);
-                if(repliedMsg) {
-                    replyHtml = `<div class="reply-preview">
-                        <i class="fas fa-reply"></i> ${repliedMsg.text.substring(0, 50)}...
-                    </div>`;
-                }
-            }
             
             let content = '';
             if(msg.type === 'image') {
@@ -1092,31 +1048,32 @@
                 content = msg.text;
             }
             
-            return `<div class="message ${isOwn ? 'own' : ''}" data-msg-id="${msg.id}">
-                        ${replyHtml}
+            return `<div class="message ${isOwn ? 'own' : ''}">
                         <div class="message-text">${content}</div>
                         <div class="message-meta">
-                            ${senderName} • ${new Date(msg.timestamp).toLocaleTimeString()} ${msg.edited ? '(ред.)' : ''}
+                            ${!isOwn ? senderName + ' • ' : ''}${new Date(msg.timestamp).toLocaleTimeString()} ${msg.edited ? '(ред.)' : ''}
                             ${!isOwn ? `<i class="fas fa-reply" style="margin-left:8px;cursor:pointer;" data-reply-id="${msg.id}"></i>` : ''}
                             ${isOwn ? `<i class="fas fa-pen" style="margin-left:8px;cursor:pointer;" data-edit-id="${msg.id}"></i> 
-                                       <i class="fas fa-trash" style="margin-left:4px;cursor:pointer;" data-del-id="${msg.id}"></i>
-                                       <i class="fas fa-share" style="margin-left:4px;cursor:pointer;" data-forward-id="${msg.id}"></i>` : ''}
+                                       <i class="fas fa-trash" style="margin-left:4px;cursor:pointer;" data-del-id="${msg.id}"></i>` : ''}
                         </div>
                     </div>`;
         }).join('');
         
         // Обработчики
         document.querySelectorAll('[data-reply-id]').forEach(el => {
-            el.onclick = (e) => {
+            el.onclick = () => {
                 const msgId = parseInt(el.dataset.replyId);
                 replyToMessage = msgs.find(m => m.id === msgId);
-                document.getElementById('replyText').innerText = replyToMessage.text.substring(0, 50);
-                document.getElementById('replyIndicator').style.display = 'block';
+                const replyText = document.getElementById('replyText');
+                if(replyText && replyToMessage) {
+                    replyText.innerText = replyToMessage.text.substring(0, 50);
+                    document.getElementById('replyIndicator').style.display = 'block';
+                }
             };
         });
         
         document.querySelectorAll('[data-edit-id]').forEach(el => {
-            el.onclick = async (e) => {
+            el.onclick = async () => {
                 const mid = parseInt(el.dataset.editId);
                 const newText = prompt('Редактировать сообщение');
                 if(newText) await updateMessage(mid, newText);
@@ -1125,36 +1082,9 @@
         });
         
         document.querySelectorAll('[data-del-id]').forEach(el => {
-            el.onclick = async (e) => {
+            el.onclick = async () => {
                 if(confirm('Удалить сообщение?')) await deleteMessageFromDB(parseInt(el.dataset.delId));
                 await refreshMessages();
-            };
-        });
-        
-        document.querySelectorAll('[data-forward-id]').forEach(el => {
-            el.onclick = async (e) => {
-                const msgId = parseInt(el.dataset.forwardId);
-                const msg = msgs.find(m => m.id === msgId);
-                const targetChatId = prompt('Введите ID чата для пересылки (или username пользователя):');
-                if(targetChatId) {
-                    let targetChat = allChats.find(c => c.id === targetChatId);
-                    if(!targetChat) {
-                        const user = await getUserByUsername(targetChatId);
-                        if(user) targetChat = await createOrGetPrivateChat(currentUser.id, user.id);
-                    }
-                    if(targetChat) {
-                        await saveMessage({
-                            chatId: targetChat.id,
-                            senderId: currentUser.id,
-                            text: msg.text,
-                            type: msg.type,
-                            fileName: msg.fileName,
-                            timestamp: Date.now(),
-                            replyTo: null
-                        });
-                        showNotification('Сообщение переслано');
-                    }
-                }
             };
         });
         
