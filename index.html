@@ -3,9 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>BWMessenger — аналог Telegram</title>
-    <!-- Font Awesome 6 (free) -->
+    <title>BWMessenger — полный аналог Telegram</title>
+    <!-- Font Awesome 6 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- EmailJS -->
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -25,6 +27,7 @@
             --tg-message-in: #e4e6eb;
             --tg-accent: #3390ec;
             --tg-hover: #f0f2f5;
+            --tg-danger: #e53935;
         }
 
         body.dark {
@@ -47,7 +50,6 @@
             height: 100vh;
         }
 
-        /* Auth screens */
         .auth-container {
             display: flex;
             justify-content: center;
@@ -71,7 +73,7 @@
             text-align: center;
         }
 
-        .auth-card input, .auth-card button {
+        .auth-card input, .auth-card button, .auth-card select {
             width: 100%;
             padding: 12px;
             margin-bottom: 16px;
@@ -88,6 +90,11 @@
             border: none;
             cursor: pointer;
             font-weight: bold;
+        }
+
+        .auth-card button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
         }
 
         .auth-card .avatar-preview {
@@ -107,7 +114,13 @@
             margin-bottom: 10px;
         }
 
-        /* Messenger layout */
+        .success-msg {
+            color: green;
+            font-size: 12px;
+            margin-top: -10px;
+            margin-bottom: 10px;
+        }
+
         .messenger {
             display: none;
             height: 100vh;
@@ -148,6 +161,7 @@
             height: 48px;
             border-radius: 50%;
             object-fit: cover;
+            cursor: pointer;
         }
 
         .profile-info {
@@ -163,12 +177,13 @@
             color: var(--tg-text-secondary);
         }
 
-        .logout-btn {
+        .logout-btn, .settings-btn {
             background: none;
             border: none;
             color: var(--tg-text);
             cursor: pointer;
             font-size: 20px;
+            margin-left: 8px;
         }
 
         .chats-list {
@@ -183,6 +198,7 @@
             gap: 12px;
             cursor: pointer;
             transition: background 0.2s;
+            position: relative;
         }
 
         .chat-item:hover, .chat-item.active {
@@ -199,6 +215,18 @@
             justify-content: center;
             color: white;
             font-weight: bold;
+            position: relative;
+        }
+
+        .online-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #4caf50;
+            position: absolute;
+            bottom: 2px;
+            right: 2px;
+            border: 2px solid var(--tg-sidebar);
         }
 
         .chat-details {
@@ -225,6 +253,20 @@
             align-items: center;
             gap: 12px;
             background: var(--tg-header);
+        }
+
+        .call-buttons {
+            margin-left: auto;
+            display: flex;
+            gap: 12px;
+        }
+
+        .call-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 20px;
+            color: var(--tg-accent);
         }
 
         .messages-area {
@@ -261,15 +303,25 @@
             margin-top: 4px;
         }
 
+        .reply-preview {
+            background: rgba(0,0,0,0.1);
+            padding: 4px 8px;
+            border-radius: 8px;
+            margin-bottom: 4px;
+            font-size: 12px;
+            border-left: 2px solid var(--tg-accent);
+        }
+
         .input-area {
             padding: 12px;
             border-top: 1px solid var(--tg-border);
             display: flex;
             gap: 8px;
             background: var(--tg-bg);
+            flex-wrap: wrap;
         }
 
-        .input-area input {
+        .input-area input[type="text"] {
             flex: 1;
             padding: 10px;
             border-radius: 24px;
@@ -295,6 +347,88 @@
             margin-left: 8px;
         }
 
+        .global-search {
+            padding: 8px;
+            border-bottom: 1px solid var(--tg-border);
+        }
+
+        .global-search input {
+            width: 100%;
+            padding: 8px;
+            border-radius: 20px;
+            border: 1px solid var(--tg-border);
+            background: var(--tg-bg);
+            color: var(--tg-text);
+        }
+
+        .search-results {
+            position: absolute;
+            background: var(--tg-bg);
+            border: 1px solid var(--tg-border);
+            border-radius: 12px;
+            width: 300px;
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+        }
+
+        .search-result-item {
+            padding: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .search-result-item:hover {
+            background: var(--tg-hover);
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: var(--tg-accent);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 12px;
+            z-index: 2000;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 3000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: var(--tg-bg);
+            border-radius: 20px;
+            padding: 24px;
+            width: 90%;
+            max-width: 400px;
+        }
+
         @media (max-width: 640px) {
             .sidebar {
                 width: 100%;
@@ -314,14 +448,17 @@
 <div id="app"></div>
 
 <script>
-    // ---------- MOCK EMAIL VERIFICATION (alert show code) ----------
-    let pendingVerificationEmail = null;
-    let generatedCode = null;
+    // Инициализация EmailJS (замените на свои ключи после регистрации на emailjs.com)
+    emailjs.init("YOUR_PUBLIC_KEY"); // Временно, для демо используем alert
 
-    // ---------- IndexedDB wrapper ----------
+    // ---------- IndexedDB ----------
     const DB_NAME = 'BWMessengerDB';
-    const DB_VERSION = 1;
+    const DB_VERSION = 2;
     let db = null;
+    let currentUser = null;
+    let currentChat = null;
+    let allChats = [];
+    let replyToMessage = null;
 
     function openDB() {
         return new Promise((resolve, reject) => {
@@ -357,8 +494,7 @@
     async function getUsers() {
         return new Promise((resolve) => {
             const tx = db.transaction('users', 'readonly');
-            const store = tx.objectStore('users');
-            const all = store.getAll();
+            const all = tx.objectStore('users').getAll();
             all.onsuccess = () => resolve(all.result);
         });
     }
@@ -366,8 +502,7 @@
     async function saveUser(user) {
         return new Promise((resolve, reject) => {
             const tx = db.transaction('users', 'readwrite');
-            const store = tx.objectStore('users');
-            const req = store.put(user);
+            const req = tx.objectStore('users').put(user);
             req.onsuccess = () => resolve();
             req.onerror = () => reject(req.error);
         });
@@ -376,8 +511,7 @@
     async function getUserByUsername(username) {
         return new Promise((resolve) => {
             const tx = db.transaction('users', 'readonly');
-            const index = tx.objectStore('users').index('username');
-            const req = index.get(username);
+            const req = tx.objectStore('users').index('username').get(username);
             req.onsuccess = () => resolve(req.result);
         });
     }
@@ -385,8 +519,7 @@
     async function getUserByEmail(email) {
         return new Promise((resolve) => {
             const tx = db.transaction('users', 'readonly');
-            const index = tx.objectStore('users').index('email');
-            const req = index.get(email);
+            const req = tx.objectStore('users').index('email').get(email);
             req.onsuccess = () => resolve(req.result);
         });
     }
@@ -408,8 +541,7 @@
     async function getMessagesForChat(chatId) {
         return new Promise((resolve) => {
             const tx = db.transaction('messages', 'readonly');
-            const index = tx.objectStore('messages').index('chatId');
-            const req = index.getAll(chatId);
+            const req = tx.objectStore('messages').index('chatId').getAll(chatId);
             req.onsuccess = () => resolve(req.result.sort((a,b)=>a.timestamp - b.timestamp));
         });
     }
@@ -421,7 +553,6 @@
     }
 
     async function updateMessage(msgId, newText) {
-        // get then put
         const tx = db.transaction('messages', 'readwrite');
         const store = tx.objectStore('messages');
         const getReq = store.get(msgId);
@@ -445,8 +576,7 @@
     async function getSession() {
         return new Promise((resolve) => {
             const tx = db.transaction('sessions', 'readonly');
-            const store = tx.objectStore('sessions');
-            const req = store.get('current');
+            const req = tx.objectStore('sessions').get('current');
             req.onsuccess = () => resolve(req.result?.userId || null);
         });
     }
@@ -463,15 +593,60 @@
         return new Promise((resolve) => { tx.oncomplete = resolve; });
     }
 
-    // Helper: generate random ID
     function generateUserId() {
         return Math.floor(10000000 + Math.random() * 90000000).toString();
     }
 
-    // Helper: create default personal chat with self? not needed. But create group or private chat
+    function showNotification(message) {
+        const notif = document.createElement('div');
+        notif.className = 'notification';
+        notif.textContent = message;
+        document.body.appendChild(notif);
+        setTimeout(() => notif.remove(), 3000);
+    }
+
+    // Отправка реального email через EmailJS (демо-режим с alert)
+    async function sendVerificationCode(email, code) {
+        // Для реальной работы: зарегистрируйтесь на emailjs.com и замените
+        // Это демо-версия с alert
+        alert(`📧 Письмо отправлено на ${email}\nКод подтверждения: ${code}\n\n(В реальной версии письмо придет на почту. Для теста используйте этот код)`);
+        return true;
+        
+        /* Реальная реализация EmailJS (раскомментируйте и добавьте свои ключи):
+        try {
+            await emailjs.send("YOUR_SERVICE_ID", "YOUR_TEMPLATE_ID", {
+                to_email: email,
+                verification_code: code,
+            });
+            return true;
+        } catch(error) {
+            console.error(error);
+            return false;
+        }
+        */
+    }
+
+    // Создание чата "Избранное" (сообщения только для себя)
+    async function createSavedMessages() {
+        let chats = await getAllChats();
+        let savedChat = chats.find(c => c.type === 'saved');
+        if (!savedChat && currentUser) {
+            savedChat = {
+                id: `saved_${currentUser.id}`,
+                type: 'saved',
+                participants: [currentUser.id],
+                name: 'Избранное',
+                createdAt: Date.now()
+            };
+            await saveChat(savedChat);
+        }
+        return savedChat;
+    }
+
     async function createOrGetPrivateChat(user1Id, user2Id) {
         let chats = await getAllChats();
-        let existing = chats.find(c => c.type === 'private' && ((c.participants.includes(user1Id) && c.participants.includes(user2Id))));
+        let existing = chats.find(c => c.type === 'private' && 
+            c.participants.includes(user1Id) && c.participants.includes(user2Id));
         if(existing) return existing;
         let newChat = {
             id: Date.now().toString(),
@@ -484,15 +659,15 @@
         return newChat;
     }
 
-    // UI logic
-    let currentUser = null;
-    let currentChat = null;
-    let currentMessages = [];
-    let allChats = [];
+    // Имитация звонка
+    function makeCall(chat, isVideo = false) {
+        showNotification(`📞 ${isVideo ? 'Видеозвонок' : 'Звонок'} в чат ${chat.name || 'чат'}... (демо-режим)`);
+        setTimeout(() => {
+            showNotification(`Звонок завершен (демо-версия)`);
+        }, 3000);
+    }
 
-    // Render app
     const app = document.getElementById('app');
-    let currentScreen = 'auth'; // auth or messenger
 
     async function init() {
         await openDB();
@@ -501,6 +676,7 @@
             const users = await getUsers();
             currentUser = users.find(u => u.id === sessionUserId);
             if(currentUser) {
+                await createSavedMessages();
                 renderMessenger();
                 return;
             } else {
@@ -514,46 +690,57 @@
         app.innerHTML = `
             <div class="auth-container">
                 <div class="auth-card">
-                    <h2>BWMessenger</h2>
-                    <p>Вход / Регистрация</p>
+                    <h2><i class="fas fa-paper-plane"></i> BWMessenger</h2>
+                    <p>Введите email для входа или регистрации</p>
                     <input type="email" id="emailInput" placeholder="Email" autocomplete="off">
-                    <button id="sendCodeBtn">Отправить код</button>
+                    <button id="sendCodeBtn"><i class="fas fa-envelope"></i> Отправить код</button>
                     <div id="codeSection" style="display:none;">
                         <input type="text" id="codeInput" placeholder="6-значный код">
-                        <button id="verifyCodeBtn">Подтвердить</button>
+                        <button id="verifyCodeBtn"><i class="fas fa-check"></i> Подтвердить</button>
                     </div>
                     <div class="error-msg" id="authError"></div>
                 </div>
             </div>
         `;
+        
         const emailInp = document.getElementById('emailInput');
         const sendBtn = document.getElementById('sendCodeBtn');
         const codeDiv = document.getElementById('codeSection');
         const codeInp = document.getElementById('codeInput');
         const verifyBtn = document.getElementById('verifyCodeBtn');
         const errorDiv = document.getElementById('authError');
+        let pendingEmail = null;
+        let generatedCode = null;
 
         sendBtn.onclick = async () => {
             const email = emailInp.value.trim();
             if(!email.includes('@')) { errorDiv.innerText = 'Введите корректный email'; return; }
-            pendingVerificationEmail = email;
+            pendingEmail = email;
             generatedCode = Math.floor(100000 + Math.random() * 900000).toString();
-            alert(`[DEMO] Ваш код подтверждения: ${generatedCode}\n(В реальном сервисе пришёл бы на почту)`);
-            codeDiv.style.display = 'block';
-            errorDiv.innerText = '';
+            
+            sendBtn.disabled = true;
+            const sent = await sendVerificationCode(email, generatedCode);
+            sendBtn.disabled = false;
+            
+            if(sent) {
+                codeDiv.style.display = 'block';
+                errorDiv.innerText = '';
+                showNotification(`Код отправлен на ${email}`);
+            } else {
+                errorDiv.innerText = 'Ошибка отправки. Попробуйте еще раз.';
+            }
         };
+        
         verifyBtn.onclick = async () => {
             if(codeInp.value === generatedCode) {
-                // проверяем существование пользователя
-                let user = await getUserByEmail(pendingVerificationEmail);
+                let user = await getUserByEmail(pendingEmail);
                 if(user) {
-                    // login
                     currentUser = user;
                     await setSession(currentUser.id);
+                    await createSavedMessages();
                     renderMessenger();
                 } else {
-                    // переход на регистрацию
-                    renderRegistration(pendingVerificationEmail);
+                    renderRegistration(pendingEmail);
                 }
             } else {
                 errorDiv.innerText = 'Неверный код';
@@ -576,6 +763,7 @@
                 </div>
             </div>
         `;
+        
         const avatarFile = document.getElementById('avatarInput');
         const avatarPreview = document.getElementById('avatarPreview');
         const firstName = document.getElementById('firstName');
@@ -592,6 +780,7 @@
                 reader.readAsDataURL(file);
             }
         };
+        
         regBtn.onclick = async () => {
             const fname = firstName.value.trim();
             const lname = lastName.value.trim();
@@ -608,11 +797,13 @@
                 lastName: lname,
                 username: username,
                 avatar: avatarBase64,
-                createdAt: Date.now()
+                createdAt: Date.now(),
+                online: true
             };
             await saveUser(newUser);
             currentUser = newUser;
             await setSession(currentUser.id);
+            await createSavedMessages();
             renderMessenger();
         };
     }
@@ -630,55 +821,133 @@
                                 <div class="profile-username">@${currentUser.username}</div>
                             </div>
                             <button class="theme-toggle" id="themeToggle"><i class="fas fa-moon"></i></button>
+                            <button class="settings-btn" id="settingsBtn"><i class="fas fa-cog"></i></button>
                             <button class="logout-btn" id="logoutBtn"><i class="fas fa-sign-out-alt"></i></button>
                         </div>
-                        <div style="padding: 8px;"><input type="text" id="searchChats" placeholder="Поиск чатов..." style="width:100%; padding:8px; border-radius:20px;"></div>
+                        <div class="global-search">
+                            <input type="text" id="globalSearch" placeholder="🔍 Глобальный поиск пользователей...">
+                            <div id="searchResults" class="search-results"></div>
+                        </div>
                         <div class="chats-list" id="chatsList"></div>
-                        <div style="padding: 12px;"><button id="newGroupBtn" style="background:var(--tg-accent);color:white;border:none;border-radius:20px;padding:8px;"><i class="fas fa-plus"></i> Создать группу</button></div>
+                        <div style="padding: 12px;">
+                            <button id="newGroupBtn" style="background:var(--tg-accent);color:white;border:none;border-radius:20px;padding:8px;width:100%;">
+                                <i class="fas fa-plus"></i> Создать группу
+                            </button>
+                        </div>
                     </div>
                     <div class="chat-area">
                         <div class="chat-header" id="chatHeader">Выберите чат</div>
                         <div class="messages-area" id="messagesArea"></div>
                         <div class="input-area" id="inputArea" style="display:none;">
+                            <div id="replyIndicator" style="width:100%;display:none;padding:8px;background:var(--tg-sidebar);border-radius:8px;margin-bottom:8px;">
+                                <i class="fas fa-reply"></i> Ответ на сообщение <span id="replyText"></span>
+                                <button id="cancelReply" style="float:right;background:none;border:none;">✖</button>
+                            </div>
                             <input type="text" id="messageInput" placeholder="Сообщение">
-                            <button id="sendMsgBtn"><i class="fas fa-paper-plane"></i></button>
-                            <input type="file" id="fileInput" style="display:none;">
                             <button id="attachBtn"><i class="fas fa-paperclip"></i></button>
+                            <button id="sendMsgBtn"><i class="fas fa-paper-plane"></i></button>
+                            <input type="file" id="fileInput" style="display:none;" multiple>
                         </div>
                     </div>
                 </div>
             </div>
         `;
+        
+        // Обработчики
         document.getElementById('logoutBtn').onclick = async () => {
             await clearSession();
             currentUser = null;
             renderAuthEmail();
         };
+        
         document.getElementById('themeToggle').onclick = () => {
             document.body.classList.toggle('dark');
         };
+        
+        document.getElementById('settingsBtn').onclick = () => {
+            showNotification('Настройки в разработке');
+        };
+        
         document.getElementById('newGroupBtn').onclick = () => createGroupDialog();
-        document.getElementById('searchChats').addEventListener('input', (e) => filterChats(e.target.value));
-        document.getElementById('attachBtn')?.addEventListener('click', () => document.getElementById('fileInput').click());
-        document.getElementById('fileInput')?.addEventListener('change', async (e) => {
-            if(e.target.files[0] && currentChat) {
-                const file = e.target.files[0];
-                const reader = new FileReader();
-                reader.onload = async (ev) => {
-                    await saveMessage({
-                        chatId: currentChat.id,
-                        senderId: currentUser.id,
-                        text: ev.target.result,
-                        type: 'image',
-                        timestamp: Date.now(),
-                        replyTo: null
-                    });
-                    await refreshMessages();
-                };
-                reader.readAsDataURL(file);
+        
+        // Глобальный поиск
+        const searchInput = document.getElementById('globalSearch');
+        const searchResults = document.getElementById('searchResults');
+        
+        searchInput.oninput = async (e) => {
+            const query = e.target.value.toLowerCase();
+            if(query.length < 2) {
+                searchResults.style.display = 'none';
+                return;
+            }
+            const users = await getUsers();
+            const filtered = users.filter(u => u.id !== currentUser.id && 
+                (u.username.toLowerCase().includes(query) || 
+                 u.firstName.toLowerCase().includes(query) || 
+                 u.lastName.toLowerCase().includes(query)));
+            
+            if(filtered.length > 0) {
+                searchResults.innerHTML = filtered.map(u => `
+                    <div class="search-result-item" data-username="${u.username}">
+                        <img src="${u.avatar || 'https://via.placeholder.com/32'}" style="width:32px;height:32px;border-radius:50%;">
+                        <div>
+                            <strong>${u.firstName} ${u.lastName}</strong><br>
+                            <small>@${u.username}</small>
+                        </div>
+                    </div>
+                `).join('');
+                searchResults.style.display = 'block';
+                document.querySelectorAll('.search-result-item').forEach(el => {
+                    el.onclick = async () => {
+                        const username = el.dataset.username;
+                        const user = await getUserByUsername(username);
+                        if(user) {
+                            const chat = await createOrGetPrivateChat(currentUser.id, user.id);
+                            await openChat(chat.id);
+                            searchResults.style.display = 'none';
+                            searchInput.value = '';
+                        }
+                    };
+                });
+            } else {
+                searchResults.style.display = 'none';
+            }
+        };
+        
+        document.addEventListener('click', (e) => {
+            if(!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+                searchResults.style.display = 'none';
             }
         });
-        document.getElementById('sendMsgBtn')?.addEventListener('click', async () => {
+        
+        // Прикрепление файлов
+        const fileInput = document.getElementById('fileInput');
+        document.getElementById('attachBtn').onclick = () => fileInput.click();
+        fileInput.onchange = async (e) => {
+            if(e.target.files && currentChat) {
+                for(let file of e.target.files) {
+                    const reader = new FileReader();
+                    reader.onload = async (ev) => {
+                        await saveMessage({
+                            chatId: currentChat.id,
+                            senderId: currentUser.id,
+                            text: ev.target.result,
+                            type: file.type.startsWith('image/') ? 'image' : 'file',
+                            fileName: file.name,
+                            fileSize: file.size,
+                            timestamp: Date.now(),
+                            replyTo: replyToMessage?.id || null
+                        });
+                        replyToMessage = null;
+                        document.getElementById('replyIndicator').style.display = 'none';
+                        await refreshMessages();
+                    };
+                    reader.readAsDataURL(file);
+                }
+            }
+        };
+        
+        document.getElementById('sendMsgBtn').onclick = async () => {
             const inp = document.getElementById('messageInput');
             if(inp.value.trim() && currentChat) {
                 await saveMessage({
@@ -687,17 +956,32 @@
                     text: inp.value,
                     type: 'text',
                     timestamp: Date.now(),
-                    replyTo: null,
+                    replyTo: replyToMessage?.id || null,
                     edited: false
                 });
                 inp.value = '';
+                replyToMessage = null;
+                document.getElementById('replyIndicator').style.display = 'none';
                 await refreshMessages();
             }
+        };
+        
+        document.getElementById('messageInput').onkeypress = (e) => {
+            if(e.key === 'Enter') document.getElementById('sendMsgBtn').click();
+        };
+        
+        document.getElementById('cancelReply')?.addEventListener('click', () => {
+            replyToMessage = null;
+            document.getElementById('replyIndicator').style.display = 'none';
         });
-        document.getElementById('messageInput')?.addEventListener('keypress', (e) => { if(e.key==='Enter') document.getElementById('sendMsgBtn').click(); });
+        
         await refreshChatsList();
         if(currentChat) {
             await openChat(currentChat.id);
+        } else {
+            // Открыть "Избранное" по умолчанию
+            const saved = await createSavedMessages();
+            if(saved) await openChat(saved.id);
         }
         document.querySelector('.messenger').style.display = 'block';
     }
@@ -712,23 +996,34 @@
         const myId = currentUser.id;
         let myChats = allChats.filter(c => c.participants.includes(myId));
         const users = await getUsers();
+        
         container.innerHTML = myChats.map(chat => {
             let chatName = chat.name;
-            let avatarLetter = chat.name?.[0] || 'G';
+            let avatarLetter = chat.name?.[0] || '💬';
+            let icon = '';
+            
             if(chat.type === 'private') {
                 const otherId = chat.participants.find(id => id !== myId);
                 const other = users.find(u => u.id === otherId);
                 chatName = other ? `${other.firstName} ${other.lastName}` : 'Unknown';
                 avatarLetter = chatName[0];
+            } else if(chat.type === 'saved') {
+                chatName = '⭐️ Избранное';
+                avatarLetter = '⭐';
             }
+            
             return `<div class="chat-item" data-chat-id="${chat.id}">
-                        <div class="chat-avatar">${avatarLetter}</div>
+                        <div class="chat-avatar">
+                            ${avatarLetter}
+                            ${chat.type === 'private' ? '<div class="online-indicator"></div>' : ''}
+                        </div>
                         <div class="chat-details">
                             <div class="chat-name">${chatName}</div>
                             <div class="chat-last-msg">${chat.lastMsg || 'Нет сообщений'}</div>
                         </div>
                     </div>`;
         }).join('');
+        
         document.querySelectorAll('.chat-item').forEach(el => {
             el.addEventListener('click', () => openChat(el.dataset.chatId));
         });
@@ -738,16 +1033,32 @@
         currentChat = allChats.find(c => c.id === chatId);
         document.getElementById('inputArea').style.display = 'flex';
         await refreshMessages();
+        
         document.querySelectorAll('.chat-item').forEach(el => el.classList.remove('active'));
         document.querySelector(`.chat-item[data-chat-id="${chatId}"]`)?.classList.add('active');
+        
         let header = document.getElementById('chatHeader');
         if(currentChat.type === 'private') {
             const users = await getUsers();
             const otherId = currentChat.participants.find(id=>id!==currentUser.id);
             const other = users.find(u=>u.id===otherId);
-            header.innerHTML = `<img class="profile-avatar" src="${other?.avatar||'https://via.placeholder.com/48'}" style="width:40px;"><div><strong>${other?.firstName} ${other?.lastName}</strong><br>@${other?.username}</div>`;
+            header.innerHTML = `
+                <img class="profile-avatar" src="${other?.avatar||'https://via.placeholder.com/48'}" style="width:40px;">
+                <div>
+                    <strong>${other?.firstName} ${other?.lastName}</strong><br>
+                    <small>@${other?.username}</small>
+                </div>
+                <div class="call-buttons">
+                    <button class="call-btn" id="audioCallBtn"><i class="fas fa-phone"></i></button>
+                    <button class="call-btn" id="videoCallBtn"><i class="fas fa-video"></i></button>
+                </div>
+            `;
+            document.getElementById('audioCallBtn')?.addEventListener('click', () => makeCall(currentChat, false));
+            document.getElementById('videoCallBtn')?.addEventListener('click', () => makeCall(currentChat, true));
+        } else if(currentChat.type === 'saved') {
+            header.innerHTML = `<div><strong>⭐️ Избранное</strong><br><small>Ваши сохраненные сообщения</small></div>`;
         } else {
-            header.innerHTML = `<div class="chat-avatar">${currentChat.name?.[0]}</div><div><strong>${currentChat.name}</strong></div>`;
+            header.innerHTML = `<div class="chat-avatar">${currentChat.name?.[0]}</div><div><strong>${currentChat.name}</strong><br><small>Групповой чат</small></div>`;
         }
     }
 
@@ -756,18 +1067,54 @@
         const msgs = await getMessagesForChat(currentChat.id);
         const users = await getUsers();
         const messagesArea = document.getElementById('messagesArea');
+        
         messagesArea.innerHTML = msgs.map(msg => {
             const isOwn = msg.senderId === currentUser.id;
             const sender = users.find(u=>u.id===msg.senderId);
             const senderName = sender ? sender.firstName : 'Unknown';
+            let replyHtml = '';
+            if(msg.replyTo) {
+                const repliedMsg = msgs.find(m => m.id === msg.replyTo);
+                if(repliedMsg) {
+                    replyHtml = `<div class="reply-preview">
+                        <i class="fas fa-reply"></i> ${repliedMsg.text.substring(0, 50)}...
+                    </div>`;
+                }
+            }
+            
+            let content = '';
+            if(msg.type === 'image') {
+                content = `<img src="${msg.text}" style="max-width:250px;border-radius:12px;cursor:pointer;" onclick="window.open(this.src)">`;
+            } else if(msg.type === 'file') {
+                content = `<i class="fas fa-file"></i> ${msg.fileName || 'Файл'} (${(msg.fileSize/1024).toFixed(1)} KB)<br>
+                          <a href="${msg.text}" download="${msg.fileName}" style="color:var(--tg-accent);">Скачать</a>`;
+            } else {
+                content = msg.text;
+            }
+            
             return `<div class="message ${isOwn ? 'own' : ''}" data-msg-id="${msg.id}">
-                        <div class="message-text">${msg.type === 'image' ? `<img src="${msg.text}" style="max-width:200px;border-radius:12px;">` : msg.text}</div>
-                        <div class="message-meta">${senderName} • ${new Date(msg.timestamp).toLocaleTimeString()} ${msg.edited ? '(ред.)' : ''}
-                            ${isOwn ? `<i class="fas fa-pen" style="margin-left:8px;cursor:pointer;" data-edit-id="${msg.id}"></i> <i class="fas fa-trash" style="margin-left:4px;cursor:pointer;" data-del-id="${msg.id}"></i>` : ''}
+                        ${replyHtml}
+                        <div class="message-text">${content}</div>
+                        <div class="message-meta">
+                            ${senderName} • ${new Date(msg.timestamp).toLocaleTimeString()} ${msg.edited ? '(ред.)' : ''}
+                            ${!isOwn ? `<i class="fas fa-reply" style="margin-left:8px;cursor:pointer;" data-reply-id="${msg.id}"></i>` : ''}
+                            ${isOwn ? `<i class="fas fa-pen" style="margin-left:8px;cursor:pointer;" data-edit-id="${msg.id}"></i> 
+                                       <i class="fas fa-trash" style="margin-left:4px;cursor:pointer;" data-del-id="${msg.id}"></i>
+                                       <i class="fas fa-share" style="margin-left:4px;cursor:pointer;" data-forward-id="${msg.id}"></i>` : ''}
                         </div>
                     </div>`;
         }).join('');
-        // edit/delete listeners
+        
+        // Обработчики
+        document.querySelectorAll('[data-reply-id]').forEach(el => {
+            el.onclick = (e) => {
+                const msgId = parseInt(el.dataset.replyId);
+                replyToMessage = msgs.find(m => m.id === msgId);
+                document.getElementById('replyText').innerText = replyToMessage.text.substring(0, 50);
+                document.getElementById('replyIndicator').style.display = 'block';
+            };
+        });
+        
         document.querySelectorAll('[data-edit-id]').forEach(el => {
             el.onclick = async (e) => {
                 const mid = parseInt(el.dataset.editId);
@@ -776,30 +1123,61 @@
                 await refreshMessages();
             };
         });
+        
         document.querySelectorAll('[data-del-id]').forEach(el => {
             el.onclick = async (e) => {
-                if(confirm('Удалить?')) await deleteMessageFromDB(parseInt(el.dataset.delId));
+                if(confirm('Удалить сообщение?')) await deleteMessageFromDB(parseInt(el.dataset.delId));
                 await refreshMessages();
             };
         });
+        
+        document.querySelectorAll('[data-forward-id]').forEach(el => {
+            el.onclick = async (e) => {
+                const msgId = parseInt(el.dataset.forwardId);
+                const msg = msgs.find(m => m.id === msgId);
+                const targetChatId = prompt('Введите ID чата для пересылки (или username пользователя):');
+                if(targetChatId) {
+                    let targetChat = allChats.find(c => c.id === targetChatId);
+                    if(!targetChat) {
+                        const user = await getUserByUsername(targetChatId);
+                        if(user) targetChat = await createOrGetPrivateChat(currentUser.id, user.id);
+                    }
+                    if(targetChat) {
+                        await saveMessage({
+                            chatId: targetChat.id,
+                            senderId: currentUser.id,
+                            text: msg.text,
+                            type: msg.type,
+                            fileName: msg.fileName,
+                            timestamp: Date.now(),
+                            replyTo: null
+                        });
+                        showNotification('Сообщение переслано');
+                    }
+                }
+            };
+        });
+        
         messagesArea.scrollTop = messagesArea.scrollHeight;
     }
 
     async function createGroupDialog() {
         const users = await getUsers();
         const otherUsers = users.filter(u => u.id !== currentUser.id);
-        let usernamesList = otherUsers.map(u => u.username).join(', ');
-        let groupName = prompt('Название группы', 'Новая группа');
+        let groupName = prompt('Название группы:', 'Новая группа');
         if(!groupName) return;
+        
         let participants = [currentUser.id];
-        let addUsernames = prompt(`Добавить пользователей через запятую (их username): ${usernamesList}`);
-        if(addUsernames) {
-            const usernames = addUsernames.split(',').map(s=>s.trim());
+        let addUsers = prompt(`Добавьте username пользователей через запятую:\nДоступны: ${otherUsers.map(u => u.username).join(', ')}`);
+        
+        if(addUsers) {
+            const usernames = addUsers.split(',').map(s=>s.trim());
             for(let un of usernames) {
                 let u = await getUserByUsername(un);
                 if(u && !participants.includes(u.id)) participants.push(u.id);
             }
         }
+        
         const newChat = {
             id: Date.now().toString(),
             type: 'group',
@@ -810,16 +1188,7 @@
         await saveChat(newChat);
         await refreshChats();
         await refreshChatsList();
-    }
-
-    function filterChats(query) {
-        // simple filter by chat name
-        const items = document.querySelectorAll('.chat-item');
-        items.forEach(item => {
-            const name = item.querySelector('.chat-name')?.innerText.toLowerCase();
-            if(name.includes(query.toLowerCase())) item.style.display = 'flex';
-            else item.style.display = 'none';
-        });
+        showNotification(`Группа "${groupName}" создана!`);
     }
 
     init();
