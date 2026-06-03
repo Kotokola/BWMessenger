@@ -679,7 +679,7 @@
                             </label>
                         </div>
                         <input type="text" id="regName" placeholder="Имя">
-                        <input type="text" id="regLastname" placeholder="Фамилия">
+                        <input type="text" id="regLastname" placeholder="Фамилия (необязательно)">
                         <input type="text" id="regUsername" placeholder="Username (латиница)">
                         <input type="email" id="regEmail" placeholder="Email">
                         <input type="password" id="regPassword" placeholder="Пароль">
@@ -881,8 +881,8 @@
             errorDiv.innerText = '';
             successDiv.innerText = '';
 
-            if(!name || !lastname || !username || !email || !password) {
-                errorDiv.innerText = 'Заполните все поля';
+            if(!name || !username || !email || !password) {
+                errorDiv.innerText = 'Заполните обязательные поля (Имя, Username, Email, Пароль)';
                 return;
             }
             if(!/^[a-zA-Z0-9_]+$/.test(username)) {
